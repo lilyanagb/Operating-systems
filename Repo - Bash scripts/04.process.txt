@@ -1,0 +1,56 @@
+cd /srv/fmi-os/exercises/04.processes
+astero.openfmi.net
+! pid= дава празен стринг и може да си спестим да махаме хедъра така
+
+04-а-5000 : Намерете командите на 10-те най-стари процеси в системата.
+
+Ans: ps -e -o user,pid,stime,cmd --sort=start_time | head -n 10
+
+04-a-6000: Намерете PID и командата на процеса, който заема най-много виртуална памет в системата.
+
+Ans:  ps -e -o pid,cmd,vsz --sort=vsz | tail -n 1
+
+04-a-6300 : Изведете командата на най-стария процес
+
+Ans: ps -e -o cmd= --sort=start_time | head -n 1
+
+04-a-5000: Намерете колко физическа памет заемат всички процеси на потребителската група root.
+
+Ans: ps --user=root -o user=,rss= | awk '{total+=$2}END{print "Total size:"total}'
+
+04-b-6100: Изведете имената на потребителите, които имат поне 2 процеса, чиято команда е vim (независимо какви са аргументите й)
+
+Ans:  ps -C vim -o user= | uniq -c | awk -F ' ' '{if($1>2){print $2}}'
+	ps -e -o comm,user | grep '^vim ' | ...
+
+04-b-6200: Изведете имената на потребителите, които не са логнати в момента, но имат живи процеси.
+
+Ans: ps -e -o user= | grep -v "$(who | cut -d ' ' -f1)" | sort | uniq
+
+04-b-7000: Намерете колко физическа памет заемат осреднено всички процеси на потребителската група root. Внимавайте, когато групата няма нито един процес.
+
+Ans:  ps --user=root -o user,rss | awk -F ' ' '{total+=$2; counter++}END{print total/counter}'
+	ps -g root ....
+
+if (NR == 0){print baba} - когато групата няма нито един процес
+
+! NR може да се използва вместо counter
+
+04-b-8000: Намерете всички PID и техните команди (без аргументите), които нямат tty, което ги управлява. Изведете списък само с командите без повторения.
+
+Ans: ps -e -o pid,comm,tty | awk -F ' ' '{if($3=="?"){print $2}}' | sort -d | uniq
+
+04-b-9000: Да се отпечатат PID на всички процеси, които имат повече деца от родителския си процес.
+
+Ans: 
+while read line; do
+	parent_pid=$(echo $line | cut -d ' ' -f1)
+      child_pid=$(echo $line | cut -d ' ' -f2)
+	child_num=$(ps -e -o ppid= | sed 's/^[[:space:]]\+//g' |grep "^$child_pid$" | wc -l)
+    	parent_num=$(ps -e -o ppid= | sed 's/^[[:space:]]\+//g' | grep "^$parent_pid$" | wc -l)
+	if [ $child_num -gt $parent_num ];then
+        echo $child_pid
+    	fi
+done < <(ps -e -o ppid=,pid= | sed 's/^[[:space:]]\+//g' | sed 's/[[:space:]]\+/ /g')
+
+! sed-a се налага заради аутпута, има странни спейсове

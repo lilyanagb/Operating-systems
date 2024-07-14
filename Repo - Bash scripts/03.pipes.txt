@@ -1,0 +1,451 @@
+cd /srv/fmi-os/exercises/03.pipes
+astero.openfmi.net
+
+03-a-0200 : Сортирайте /etc/passwd лексикографски по поле UserID.
+
+Ans: cat /etc/passwd | sort -d -t ":" -k1
+
+! d - dictionary order
+
+03-a-0201 : Сортирайте /etc/passwd числово по поле UserID. (Открийте разликите с лексикографската сортировка)
+
+Ans: cat /etc/passwd | sort -n -t ":" -k1
+
+03-a-0210 : Изведете само 1-ва и 5-та колона на файла /etc/passwd спрямо разделител ":".
+
+Ans: cat /etc/passwd | cut -d ":" -f1,5 
+
+03-a-0211 : Изведете съдържанието на файла /etc/passwd от 2-ри до 6-ти символ.
+
+Ans:  cat /etc/passwd | cut -c 2-6
+
+03-a-0212 : Отпечатайте потребителските имена и техните home директории от /etc/passwd.
+
+Ans: cat /etc/passwd | cut -d ':' -f1,6
+
+03-a-0213 : Отпечатайте втората колона на /etc/passwd, разделена спрямо символ '/'.
+
+Ans: cat /etc/passwd | cut -d "/" -f2
+
+03-a-1500 : Изведете броя на байтовете в /etc/passwd.
+Изведете броя на символите в /etc/passwd.
+Изведете броя на редовете  в /etc/passwd.
+
+Ans: cat /etc/passwd | wc -cml
+
+03-a-2000 : С отделни команди, извадете от файл /etc/passwd:
+- първите 12 реда
+- първите 26 символа
+- всички редове, освен последните 4
+- последните 17 реда
+- 151-я ред (или друг произволен, ако нямате достатъчно редове)
+- последните 4 символа от 13-ти ред (символът за нов ред не е част от реда)
+
+Ans:  cat /etc/passwd | head -n 12
+	cat /etc/passwd | head -c 26
+	cat /etc/passwd | head -n -4
+	cat /etc/passwd | tail -n 17
+	cat /etc/passwd | head -n 151 | tail -n 1
+	cat /etc/passwd | head -13 | tail -1 | tail -c 4
+
+03-a-3000 : Запаметете във файл в своята home директория резултатът от командата `df -P`. Напишете команда, която извежда на екрана съдържанието на този файл, без първия ред (хедъра), сортирано по второ поле (numeric).
+
+Ans:  df -P >> df.txt
+	cat df.txt | tail +2 | sort -n -k2
+
+! трябва да е +2, +1 принтира цялото съдържание tail -n +<N+1>
+! sort ignores whitespace
+
+03-a-3400 : Колко коментара има във файла /etc/services ? Коментарите се маркират със символа #, след който всеки символ на реда се счита за коментар.
+
+Ans: egrep "#" /etc/services | wc -l
+
+03-a-3500 : Колко файлове в /bin са 'shell script'-oве? (Колко файлове в дадена директория са ASCII text?)
+
+Ans:  file /bin/* | grep --color "shell script" | wc -l
+	file /bin/* | grep --color "ASCII" | wc -l
+
+03-a-5000 : Изведете реда от /etc/passwd, на който има информация за вашия потребител. Изведедете този ред и двата реда преди него. Изведете този ред, двата преди него, и трите след него. Изведете *само* реда, който се намира 2 реда преди реда, съдържащ информация за вашия потребител.
+
+Ans:  cat /etc/passwd | grep "s62599"
+	cat /etc/passwd | grep -B 2 "s62599"
+	cat /etc/passwd | grep -B 2 -A 3 "s62599"
+	cat /etc/passwd | grep -B 2 "s62599" | head -1
+
+03-a-5001 : Изведете колко потребители не изпозват /bin/bash за login shell според /etc/passwd
+(hint: 'man 5 passwd' за информация какъв е форматът на /etc/passwd)
+
+Ans: cat /etc/passwd | grep -v "/bin/bash" | wc -l
+
+! grep -v за отрицание
+ 
+03-a-5002 : Изведете само имената на хората с второ име по-дълго от 6 (>6) символа според /etc/passwd
+
+Ans: cat /etc/passwd | cut -d ":" -f 5 | cut -d "," -f 1 | grep --color "[[:alpha:]]\+ [[:alpha:]]\{7,\}\$"
+
+03-a-5003 : Изведете имената на хората с второ име по-късо от 8 (<=7) символа според /etc/passwd // !(>7) = ?
+
+Ans: cat /etc/passwd | cut -d ":" -f 5 | cut -d "," -f 1 | grep --color "[[:alpha:]]\+ [[:alpha:]]\{,7\}\$"
+
+03-a-5004 : Изведете целите редове от /etc/passwd за хората от 03-a-5003
+
+Ans: cat /etc/passwd | grep --color ":[[:alpha:]]\+ [[:alpha:]]\{1,7\}\,"
+
+03-a-6000 : Копирайте <РЕПО>/exercises/data/emp.data във вашата home директория.
+Посредством awk, използвайки копирания файл за входни данни, изведете:
+- общия брой редове
+- третия ред
+- последното поле от всеки ред
+- последното поле на последния ред
+- всеки ред, който има повече от 4 полета
+- всеки ред, чието последно поле е по-голямо от 4
+- общия брой полета във всички редове
+- броя редове, в които се среща низът Beth
+- най-голямото трето поле и редът, който го съдържа
+- всеки ред, който има поне едно поле
+- всеки ред, който има повече от 17 знака
+- броя на полетата във всеки ред и самият ред
+- първите две полета от всеки ред, с разменени места
+- всеки ред така, че първите две полета да са с разменени места
+- всеки ред така, че на мястото на първото поле да има номер на реда
+- всеки ред без второто поле
+- за всеки ред, сумата от второ и трето поле
+- сумата на второ и трето поле от всеки ред
+
+Ans: 
+- 	awk 'END{print NR}' emp.data
+	awk '{count += 1} END {print count} emp.data
+- 	awk 'NR == 3{print}' emp.data
+	awk 'END {print $NF}' emp.data
+- 	awk -F ' ' '{print $3}' emp.data
+- 	awk -F ' ' 'END{print $3}' emp.data
+- 	awk -F ' ' 'NF>4{print}' emp.data
+-	awk '$NF>4{print}' emp.data
+-	awk '{count+=NF}END{print count}' emp.data
+-	awk 'BEGIN{count=0} /Beth/ {count+=1} END{print count}' emp.data
+-	awk 'BEGIN{max=0;line=""}{if($3>max){max=$3;line=$0}} END{print line}' emp.data
+-	awk 'NF>=1 {print $0}' emp.data
+-	awk 'length($0)>17{print $0}' emp.data
+	awk '/^.{18,}$/ {print $0}' emp.data
+-	awk '{print NF,$0}' emp.data
+-	awk -F ' ' '{print $2,$1}' emp.data
+
+-	awk -F ' ' '{print $2,$1,$3}' emp.data
+-	awk -F ' ' '{print NR,$2,$3}' emp.data
+-	awk -F ' ' '{print $1,$3}' emp.data
+-	awk -F ' ' '{print $2+$3}' emp.data
+-	awk -F ' ' 'BEGIN{sum=0}{sum += $2+$3}END{print sum}' emp.data
+
+! NF - column count in line
+! NR - line count 
+
+03-b-0300 : Намерете само Group ID-то си от файлa /etc/passwd.
+
+Ans: cat /etc/passwd | grep "s62599" | cut -d ':' -f4
+
+03-b-3400 : Колко коментара има във файла /etc/services ? Коментарите се маркират със символа #, след който всеки символ на реда се счита за коментар.
+
+Ans:  egrep "#" /etc/services | wc -l
+
+03-b-3500 : Колко файлове в /bin са 'shell script'-oве? (Колко файлове в дадена директория са ASCII text?)
+
+Ans:  file /bin/* | grep --color "shell script" | wc -l
+	file /bin/* | grep --color "ASCII" | wc -l 
+
+
+03-b-3600 : Направете списък с директориите на вашата файлова система, до които нямате достъп. Понеже файловата система може да е много голяма, търсете до 3 нива на дълбочина.
+
+Ans: find / -maxdepth 3 -type d | grep "denied"
+
+! / - file system
+
+03-b-4000 : Създайте следната файлова йерархия в home директорията ви:
+dir5/file1
+dir5/file2
+dir5/file3
+
+Посредством vi въведете следното съдържание:
+file1:
+1
+2
+3
+
+file2:
+s
+a
+d
+f
+
+file3:
+3
+2
+1
+45
+42
+14
+1
+52
+
+Изведете на екрана:
+	* статистика за броя редове, думи и символи за всеки един файл
+	* статистика за броя редове и символи за всички файлове
+	* общия брой редове на трите файла
+
+Ans:  cat ~/dir5/file1 | wc -l -w -c
+	cat ~/dir5/file2 | wc -l -w -c
+	cat ~/dir5/file3 | wc -l -w -c
+	cat ~/dir5/file1 ~/dir5/file2 ~/dir5/file3 | wc -lc
+	cat ~/dir5/file1 ~/dir5/file2 ~/dir5/file3 | wc -l
+
+03-b-4001 : Във file2 (inplace) подменете всички малки букви с главни.
+
+Ans:  sed -i 'y/abcdefghijklmnopqrstuvwxyz/ABCDEFGHIJKLMNOPQRSTUVWXYZ/' ~/file2
+	sed -i 's/[[:lower:]]/\U&/g' ~/file2
+
+! inplace -> sed -i (tr не може)
+! -e можем да подаваме стрингове няколко пъти 
+! y/source-chars/dest-chars/ - Transliterate any characters in the pattern space which match any of the source-chars with the corresponding character in dest-chars.
+! -s command attempts to match the pattern space against the supplied regular expression regexp;
+
+03-b-4002 : Във file3 (inplace) изтрийте всички "1"-ци.
+
+Ans: sed -i 's/1//g' ~/file3
+
+03-b-4003 : Изведете статистика за най-често срещаните символи в трите файла.
+
+Ans:  cat ~/dir5/file{1,2,3} | sort | uniq -c | sort -nr -k1
+
+03-b-4004 : Направете нов файл с име по ваш избор, чието съдържание е конкатенирани съдържанията на file{1,2,3}.
+
+Ans: cat ~/dir5/file{1,2,3} >> concatenate.txt
+
+03-b-4005 : Прочетете текстов файл file1 и направете всички главни букви малки като запишете резултата във file2.
+
+Ans: sed 's/[[:upper:]]/\L&/g' ~/file1 >> ~/file2
+
+03-b-5200 : Намерете броя на символите, различни от буквата 'а' във файла /etc/passwd
+
+Ans: cat /etc/passwd | grep -c "[^a]"
+
+03-b-5300 : Намерете броя на уникалните символи, използвани в имената на потребителите от /etc/passwd.
+
+Ans: grep -o "[[:alpha:]]\+ [[:alpha:]]\+" /etc/passwd | sed 's/[[:space:]]//g' | sed 's/\([[:alpha:]]\)/\1\n/g' | sort | uniq -c | wc -l
+
+03-b-5400 : Отпечатайте всички редове на файла /etc/passwd, които не съдържат символния низ 'ов'.
+
+Ans: cat /etc/passwd | grep -v "ов"
+
+03-b-6100 : Отпечатайте последната цифра на UID на всички редове между 28-ми и 46-ред в /etc/passwd.
+
+Ans: cat /etc/passwd | head -n 46 | tail -n 19 | cut -d ':' -f3 | rev | cut -c 1
+
+03-b-6700 : Отпечатайте правата (permissions) и имената на всички файлове, до които имате read достъп, намиращи се в директорията /tmp. (hint: 'man find', вижте -readable)
+
+Ans:  find /tmp -readable -type f -exec ls {} \;
+	find /tmp -readable -type f  2>/dev/null
+
+! -readable - Matches  files  which  are  readable  by the current user.
+
+03-b-6900 : Намерете имената на 10-те файла във вашата home директория, чието съдържание е редактирано най-скоро. На първо място трябва да бъде най-скоро редактираният файл. Намерете 10-те най-скоро достъпени файлове. (hint: Unix time)
+
+Ans:  find ~ -printf "%C@ %p\n" | sort -n -k1 | head -n 10
+	find ~ -printf "%A@ %p\n" | sort -n -k1 | head -n 10
+
+! %s File's size in bytes.
+%p File's name.
+%n Number of hard links to file.
+%P File's name with the name of the starting-point under which it was found removed.
+%t File's last modification time in the format returned by the C `ctime' function.
+@ - seconds
+%A File's last access time 
+%C File's last status change time
+%i File's inode number
+%k The  amount of disk space used for this file in 1K blocks.
+%l Object of symbolic link
+%m File's  permission  bits (in octal).
+%M File's permissions (in symbolic form, as for ls)
+
+03-b-7000 : Да приемем, че файловете, които съдържат C код, завършват на `.c` или `.h`. Колко на брой са те в директорията `/usr/include`? Колко реда C код има в тези файлове?
+
+Ans:  ls /usr/include/ | grep "[.h,.c]" | wc -l
+	ls /usr/include/ | grep "[.h,.c]" | xargs -I {} cat /usr/include/{} 2>/dev/null | wc -l
+	find /usr/include/ -maxdepth 1 -type f | egrep '.*(\.c|\.h)$' | wc -l
+	find /usr/include/ -maxdepth 1 -type f | egrep "[.h,.c]$" | wc -l
+	
+03-b-7500 : Даден ви е ASCII текстов файл - /etc/services. Отпечатайте хистограма на 10-те най-често срещани думи. Дума наричаме непразна последователност от букви. Не правим разлика между главни и малки букви. Хистограма наричаме поредица от редове, всеки от които има вида: <брой срещания> <какво се среща толкова пъти>
+
+Ans:  sed -e 's/[[:punct:]]/ /g' /etc/services | sed -e 's/[[:digit:]]/ /g' | sed -e 's/\s/\n/g' | tr '[:upper:]' '[:lower:]' | sort | uniq -c | sort -nr -k1 | head -n 10
+
+! [[:punct:]] - всички пунктуационни знаци
+
+03-b-8000 : Вземете факултетните номера на студентите (описани във файла
+<РЕПО>/exercises/data/mypasswd.txt) от СИ и ги запишете във файл si.txt сортирани. Студент е част от СИ, ако home директорията на този потребител (според
+<РЕПО>/exercises/data/mypasswd.txt) се намира в /home/SI директорията.
+
+Ans: cat /srv/fmi-os/exercises/data/mypasswd.txt | grep --color '/home/SI' | cut -d : -f1 | cut -c 2- | sort -n >> ~/si.txt
+
+
+03-b-8500 : За всяка група от /etc/group изпишете "Hello, <група>", като ако това е вашата група, напишете "Hello, <група> - I am here!".
+
+Ans: cat /etc/group | awk -F ':' '{if($1 == "students"){print "Hello, "$1" - I am here!"}else{print "Hello, "$1""}}'
+
+03-b-8600 : Shell Script-овете са файлове, които по конвенция имат разширение .sh. Всеки такъв файл започва с "#!<interpreter>" , където <interpreter> указва на операционната система какъв интерпретатор да пусне (пр: "#!/bin/bash", "#!/usr/bin/python3 -u").
+Намерете всички .sh файлове в директорията `/usr` и нейните поддиректории, и
+проверете кой е най-често използваният интерпретатор.
+
+Ans: find /usr/ -name "*.sh" -exec head -n1 {} \; | grep "#\!/" | uniq -c | sort -nr -k1
+
+03-b-8700 : 1. Изведете GID-овете на 5-те най-големи групи спрямо броя потребители, за които съответната група е основна (primary).
+2. (*) Изведете имената на съответните групи.
+Hint: /etc/passwd
+
+Ans: cat /etc/passwd | cut -d ':' -f4 | sort -n | uniq -c | sort -nr -k1 | head -n 5
+
+03-b-9000 : Направете файл eternity. Намерете всички файлове, намиращи се във вашата home директория и нейните поддиректории, които са били модифицирани в последните 15мин (по възможност изключете .).  Запишете във eternity името (път) на файла и времето (unix time) на последната промяна.
+
+Ans: find ~ -cmin -15 -printf "%p %CM\n" >> ~/eternity
+
+03-b-9050 : Копирайте файл <РЕПО>/exercises/data/population.csv във вашата home директория.
+
+Ans: cp /srv/fmi-os/exercises/data/population.csv ~
+
+03-b-9051 : Използвайки файл population.csv, намерете колко е общото население на света през 2008 година. А през 2016?
+
+Ans:  cat population.csv | grep ,2008 | cut -d ',' -f4 | sed 's/.*/ + &/' | xargs | tail -c +2 | bc
+	awk -F',' '$3==2008 {counter+=$4} END{print counter}' population.csv
+
+! sed 's/.*/ + &/' -> & слага се това, което е в .*
+
+03-b-9052 :  Използвайки файл population.csv, намерете през коя година в България има най-много население.
+
+Аns:  cat population.csv | awk -F, 'BEGIN {max=0; year=0} /Bulgaria/ {if(max<$4) year = $3; max = $4} END{print year}'
+
+! {if(max<$4) year = $3; max = $4} is the action block that is executed for each line that matches the /Bulgaria/ pattern.
+	
+03-b-9053 : Използвайки файл population.csv, намерете коя държава има най-много население през 2016. А коя е с най-малко население?
+(Hint: Погледнете имената на държавите)
+
+Ans:  cat population.csv | grep ,2016, | rev | cut -d ',' -f1,4- | rev | awk -F ',' 'BEGIN {max = 0; line =""}{if(max < $NF){max = $NF; line = $0}} END{print line}' | cut -d ',' -f1
+	cat population.csv | grep ,2016, | awk -F ",2016," 'BEGIN {c=0;n=""} c<$2 {c=$2;n=$1} END {print n}' | rev | cut -d "," -f2- | rev
+
+	cat population.csv | grep ,2016, | rev | cut -d ',' -f1,4- | rev | awk -F ',' 'BEGIN {min = 100000; line =""}{if(min > $NF){min = $NF; line = $0}} END{print line}' | cut -d ',' -f1
+
+03-b-9100 : В home директорията си изпълнете командата
+curl -o songs.tar.gz "http://fangorn.uni-sofia.bg/misc/songs.tar.gz"
+
+03-b-9101 : Да се разархивира архивът songs.tar.gz в директория songs във вашата home директория.
+
+Ans:  mkdir ~/songs
+	tar -C ~/songs -xvf ~/songs.tar.gz 
+ 
+03-b-9102 : Да се изведат само имената на песните.
+
+Ans: find ~/songs -mindepth 1 | sed -E 's/.*-(.*)\(.*/\1/g'
+
+! -E - extended (for regex)
+
+03-b-9103 : Имената на песните да се направят с малки букви, да се заменят спейсовете с долни черти и да се сортират.
+
+Ans: find ~/songs -printf "%f\n" | sed -E 's/.* - (.*) \(.*/\1/g' | tr '[:upper:]' '[:lower:]' | tr ' ' '_' | sort
+
+03-b-9104 : Да се изведат всички албуми, сортирани по година.
+
+Ans: find ~/songs -mindepth 1 | sed -E 's/.* \((.*,.*)\).ogg/\1/g' | sort -t ',' -k2
+
+03-b-9105 : Да се преброят/изведат само песните на Beatles и Pink.
+
+Ans: find ~/songs -mindepth 1 | grep -E "Beatles|Pink Floyd" | cut -d '/' -f6 | sort -d 
+
+03-b-9106 : Да се направят директории с имената на уникалните групи. За улеснение, имената
+от две думи да се напишат слято: Beatles, PinkFloyd, Madness
+
+Ans: mkdir $(find ~/songs -mindepth 1 | sed "s/\(^[[:print:]]\+\)- [[:print:]]\+/\1/g" | cut -d '/' -f6 | sed "s/ //g" | sort | uniq)
+
+03-b-9200 : Напишете серия от команди, които извеждат детайли за файловете и директориите в
+текущата директория, които имат същите права за достъп както най-големият файл
+в /etc директорията.
+
+Ans: find ~ -perm $(find /etc -printf "%p %s %m\n" 2>/dev/null | sort -nr -k2 | head -1 | cut -d ' ' -f3) -printf "%P %m\n"
+
+03-b-9300 : Дадени са ви 2 списъка с email адреси - първият има 12 валидни адреса, а
+вторията има само невалидни. Филтрирайте всички адреси, така че да останат
+само валидните. Колко кратък регулярен израз можете да направите за целта?
+
+Валидни email адреси (12 на брой):
+email@example.com
+firstname.lastname@example.com
+email@subdomain.example.com
+email@123.123.123.123
+1234567890@example.com
+email@example-one.com
+_______@example.com
+email@example.name
+email@example.museum
+email@example.co.jp
+firstname-lastname@example.com
+unusually.long.long.name@example.com
+
+Невалидни email адреси:
+#@%^%#$@#$@#.com
+@example.com
+myemail
+Joe Smith <email@example.com>
+email.example.com
+email@example@example.com
+.email@example.com
+email.@example.com
+email..email@example.com
+email@-example.com
+email@example..com
+Abc..123@example.com
+(),:;<>[\]@example.com
+just"not"right@example.com
+this\ is"really"not\allowed@example.com
+
+Ans: cat ~/emails | grep --color "^[^.-][A-Za-z0-9._]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$"
+
+03-b-9400 : Посредством awk, използвайки emp.data (от 03-a-6000.txt) за входни данни, изведете:
+- всеки ред, като полетата са в обратен ред
+(Разгледайте for цикли в awk)
+
+Ans:  awk '{ for(i=NF;i>=1;i--) printf $i" "; printf "\n" }' emp.data
+
+! първият принт е за самия ред, а вторият е след целия ред да даде нов ред
+! printf("%s ", $i)
+
+03-b-9500 : Копирайте <РЕПО>/exercises/data/ssa-input.txt във вашата home директория.
+Общият вид на файла е:
+- заглавна част:
+	Smart Array P440ar in Slot 0 (Embedded)
+- една или повече секции за масиви:
+	Array A
+	Array B
+	...
+	като буквата (A, B, ...) е името на масива
+- във всяка таква секция има една или повече подсекции за дискове:
+	physicaldrive 2I:0:5
+	physicaldrive 2I:0:6
+	...
+	като 2I:0:5 е името на диска
+- във всяка подсекция за диск има множество параметри във вида:
+	key name: value
+	като за нас са интересни само:
+		Current Temperature (C): 35
+		Maximum Temperature (C): 36
+Напишете поредица от команди която обработва файл в този формат, и генерира
+следният изход:
+A-2I:0:5 35 36
+A-2I:0:6 34 35
+B-1I:1:1 35 50
+B-1I:1:2 35 49
+x-yyyyyy zz ww
+където:
+	- x е името на масива
+	- yyyyyy е името на диска
+	- zz е current temperature
+	- ww е max temperature
+
+Ans:  grep -e "Array" -e "physicaldrive" -e "Current Temperature" -e "Maximum Temperature" ssa-input.txt | 
+	tail -n +2 | 
+	tr -s ' ' | 
+	awk 'BEGIN{OFS="-"} /^ Array/{a=$2} /^ physicaldrive/{b=$2} /^ Current Temperature/{c=$NF} /^ Maximum Temperature/{print a,b,c,$NF}'

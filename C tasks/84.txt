@@ -1,0 +1,48 @@
+#include <err.h>
+#include <unistd.h>
+#include <sys/types.h>
+
+int main(int argc, char* argv[]) {
+        //find argv[1] -type f -printf "%C@ %pn" | sort -nr -k1 | head -n 1
+        if (argc != 2){
+                err(1, "Wrong number of arguments passed!");
+        }
+
+        int pf1[2];
+        if (pipe(pf1) == -1)
+                err(2, "Pipe failed!");
+
+        pid_t pid = fork();
+
+        if (pid == 0) {
+                close(pf1[0]);
+                dup2(pf1[1], 1);
+
+                if (execlp("find", "find", argv[1], "-type", "f", "-printf", "%T@ %p\n", (char*)NULL) == -1)
+                        err(3, "execlp failed!");
+        }
+
+        int pf2[2];
+        if (pipe(pf2) == -1)
+                err(2, "Pipe failed!");
+
+        pid_t pid2 = fork();
+
+        if (pid2 == 0) {
+                close(pf1[1]);
+                close(pf2[0]);
+                dup2(pf1[0], 0);
+                dup2(pf2[1], 1);
+
+                if (execlp("sort", "sort", "-nr" , "-k1", (char*)NULL) == -1)
+                        err(3, "execlp failed!");
+        }
+
+        close(pf1[1]);
+        close(pf1[0]);
+        close(pf2[1]);
+        dup2(pf2[0], 0);
+
+        if (execlp("head", "head", "-1", (char*)NULL) == -1)
+                err(3, "execlp failed!");
+}

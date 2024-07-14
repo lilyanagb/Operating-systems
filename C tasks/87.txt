@@ -1,0 +1,71 @@
+#include <stdio.h>
+#include <string.h>
+#include <stdint.h>
+#include <err.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <stdlib.h>
+
+int main(int argc, char* argv[]){
+        if (argc != 3){
+                errx(1, "INvalid number of arguments");
+        }
+
+        int pf[2];
+
+        if (pipe(pf) == -1){
+                err(2, "Error while creating pipe");
+        }
+
+        pid_t pid;
+
+        if ((pid = fork()) == -1){
+                err(3, "Error while fork");
+        }
+
+        if (pid == 0){ // child
+                close(pf[0]);
+                dup2(pf[1],1);
+
+                if (execlp("cat", "cat", argv[1],(char*)NULL) == -1){
+                        err(4, "Error while execlp");
+                }
+
+        }
+
+        close(pf[1]);
+
+        int o_fd = open(argv[2], O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+        if (o_fd == -1) {
+                err(5, "Cannot create %s", argv[2]);
+        }
+
+        uint8_t c = 0;
+        uint8_t next = 0;
+        ssize_t rs = 0;
+
+        while ((rs = read(pf[0], &c, sizeof(c))) == sizeof(c)) {
+                switch(c) {
+                        case 0x55 :
+                                continue;
+                        case 0x7D :
+                                if (read(pf[0], &next, sizeof(next)) != sizeof(next)) {
+                                        err(6, "Cannot read escaped byte");
+                                }
+                                if ((next != 0x20) && (next != 0xDF) &&
+                                        (next != 0x75) && (next != 0x5D)) {
+                                        errx(7, "Invalid escaped byte");
+                                }
+                                c = next^0x20;
+
+                        default :
+                                if (write(o_fd, &c, sizeof(c)) != sizeof(c)) {
+                                        err(8, "Cannot write output byte");
+                                }
+                }
+        }
+
+        close(pf[0]);
+        close(o_fd);
+        exit(0);
+}

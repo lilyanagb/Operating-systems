@@ -1,0 +1,49 @@
+#include <err.h>
+#include <stdint.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <stdlib.h>
+#include <stdio.h>
+
+int main(int argc, char* argv[]){
+        if(argc != 2){
+                errx(1, "Incorrect number of arguments");
+        }
+
+        int fd = open(argv[1],O_RDWR);
+
+        if(fd == -1){
+                err(2,"Cannot open the file");
+        }
+
+        int read_status;
+        uint8_t buf;
+        uint8_t sorted[256] = {0};
+
+        while( (read_status = read(fd, &buf, sizeof(buf))) > 0){
+                sorted[buf]++;
+        }
+
+        if(read_status == -1){
+                close(fd);
+                err(3, "Cannot read from file");
+        }
+
+        if(lseek(fd,0,SEEK_SET) == -1){
+                close(fd);
+                err(4,"Error with lseek");
+        }
+
+        for(uint16_t i=0; i<256; i++){
+                for(uint8_t j=0; j<sorted[i]; j++){
+                        uint8_t k = (uint8_t)i;
+                        if(write(fd, &k, sizeof(k)) != sizeof(k)){
+                                close(fd);
+                                err(5,"Writing failure");
+                                }
+                }
+        }
+
+        close(fd);
+        exit(0);
+}

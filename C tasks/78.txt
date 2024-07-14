@@ -1,0 +1,118 @@
+#include <stdint.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <err.h>
+#include <stdio.h>
+
+struct s1_header{
+        uint32_t magic;
+        uint32_t count;
+}__attribute__((packed));
+
+struct s2_header{
+        uint32_t magic1;
+        uint16_t magic2;
+        uint16_t reserved;
+        uint64_t count;
+}__attribute__((packed));
+
+struct s2_data{
+        uint16_t type;
+        uint16_t reserved1;
+        uint16_t reserved2;
+        uint16_t reserved3;
+        uint32_t offset1;
+        uint32_t offset2;
+}__attribute__((packed));
+
+
+int main(int argc, char* argv[]){
+        if (argc != 3)
+                errx(1,"Wrong number of arguments");
+
+        struct s1_header s1_h;
+        struct s2_header s2_h;
+        struct s2_data s2_d;
+
+        int fd1 = open(argv[1], O_RDWR);
+        if (read(fd1, &s1_h, sizeof(s1_h)) == -1){
+                err(5, "Error while reading");
+        }
+        printf("0x%08x\n", s1_h.magic);
+        if (s1_h.magic != 0x21796f4a ){
+                err(6,"Wrong magic number");
+        }
+
+        int fd2 = open(argv[2], O_RDONLY);
+    if (read(fd2, &s2_h, sizeof(s2_h)) == -1){
+        err(8, "Error while reading");
+    }
+
+    if (s2_h.magic1 != 0xafbc7a37 ){
+        err(11,"Wrong magic number");
+    }
+        if (s2_h.magic2 != 0x1c27){
+                err(12, "Wrong magic number");
+        }
+
+        ssize_t rs = -1;
+        uint64_t el1;
+        uint64_t el2;
+
+        while ( (rs = read(fd2, &s2_d, sizeof(s2_d))) > 0){
+                if ( s2_d.offset1 > s1_h.count){
+                        err(17, "There is no such address in f1");
+                }
+                if ( s2_d.offset2 > s1_h.count){
+             err(18, "There is no such address in f1");
+         }
+                if ( lseek(fd1,sizeof(s1_h)+(s2_d.offset1*sizeof(uint64_t)) , SEEK_SET)== -1){
+                        err(19, "Error while leek");
+                }
+                if ( read(fd1,&el1,sizeof(el1)) == -1){
+                        err(20, "Error while reading");
+                }
+
+                if ( lseek(fd1,sizeof(s1_h)+(s2_d.offset2*sizeof(uint64_t)) , SEEK_SET)== -1){
+              err(21, "Error while leek");
+          }
+        if ( read(fd1,&el2,sizeof(el2)) == -1){
+            err(22, "Error while reading");
+        }
+
+                if (s2_d.type == 0){
+                        //check if that is the right way to compare
+                        if ( el1 > el2){
+                                lseek(fd1,sizeof(s1_h)+(s2_d.offset1*sizeof(uint64_t)) , SEEK_SET);
+                                if (write(fd1,&el2,sizeof(el2)) != sizeof(el2)){
+                                        err(23, "Error while writing");
+                                }
+                                lseek(fd1,sizeof(s1_h)+(s2_d.offset2*sizeof(uint64_t)) , SEEK_SET);
+                if (write(fd1,&el1,sizeof(el1)) != sizeof(el2)){
+                    err(24, "Error while writing");
+                }
+                        }
+                }else{
+                        //bigger
+                        if ( el1 < el2){
+                lseek(fd1,sizeof(s1_h)+(s2_d.offset1*sizeof(uint64_t)) , SEEK_SET);
+                if (write(fd1,&el2,sizeof(el2)) != sizeof(el2)){
+                    err(31, "Error while writing");
+                }
+                lseek(fd1,sizeof(s1_h)+(s2_d.offset2*sizeof(uint64_t)) , SEEK_SET);
+                if (write(fd1,&el1,sizeof(el1)) != sizeof(el2)){
+                    err(32, "Error while writing");
+                }
+            }
+                }
+
+
+        }
+        close(fd2);
+        close(fd1);
+        return 0;
+
+}

@@ -1,0 +1,64 @@
+1. 2016-SE-01
+egrep "[02468]+" philip-j-fry.txt | grep -v "[a-w]" | echo "Number of lines: $(wc -l)"
+
+2. 2017-IN-01
+find / -user $(whoami) 2>/dev/null | wc -l
+
+3. 2017-IN-02
+a) find . -type f -empty -exec rm {} \;
+b) find ~ -type f -printf "%s %p\n" | sort -nr | head -n 5
+
+4. 2017-IN-03
+awk -F ':' '$4==512' /etc/passwd | tr ',' ':' | cut -d ':' -f 1,5 | grep 'a$'| cut -c 3-4 | sort -n | uniq -c | sort -nr -k1 | head -n 1
+
+5. 2017-SE-01
+find . -maxdepth 1 -type f -printf "%n %f\n" | sort -nr –k1 | head -n 5 | cut -d " " -f2
+
+6. 2018-SE-01
+find ~ -mindepth 1 -type d -exec chmod 755 {} \;
+
+7. 2018-SE-02
+find ~pesho -type f -printf "%n %T@ %i\n" 2>/dev/null | awk '$1 > 1 {print $2, $3}' | sort -n | tail -n 1 | awk '{print $2}'
+
+8. 2018-SE-03
+egrep "^([^:]+:){3}$(sort -n -t ':' -k4 /etc/passwd | head -n 201 | tail -n 1| cut -d ':' -f 4):" /etc/passwd | cut -c 2- | sort -t ':' -n -k1 | awk -F ':' '{print $6, $5}' | cut -d ',' -f1 | awk '{print $2,$3":"$1}'
+
+9. 2019-SE-01
+#!/bin/bash
+
+if [ ! -f $1 ]; then
+echo "Wrong argument passed!"
+exit 1
+fi
+
+type=$(cat $1 | tail -n +2 | sort -t ';' -nr -k3 | head –n 1 | cut -d ';' -f2)
+cat $1 | grep ";$type;" | sort -t ';' -n -k3 | head –n 1 | cut -d ';' -f1,4 | sed 's/;/\t/g'
+
+10. 2019-SE-02 
+directories=$(find /home/students -maxdepth 1 -regex '.*/s[0-9]+' -printf "%P %C@\n" | awk -F ' ' '{if ( $2>=1621168000 && $2<=1627676101){print $0}}' | cut -d ' ' -f1)
+
+while read line; do
+    fn=$(cat /etc/passwd | grep "$line" | cut -d ':' -f1 | cut -c 2-)
+    name=$(cat /etc/passwd | grep "$line" | grep -o "[[:alpha:]]\+ [[:alpha:]]\+")
+    echo -e "$fn\t$name"
+done < <(echo "$directories")
+
+11. 2019-SE-03
+inode=$(find ~velin -printf "%i %C@\n" | sort -nr -t ' ' -k2 | head -1 | cut -d ' ' -f1)
+
+find ~ -inum $inode -printf "%P %d\n" | sort -n -t ' ' -k2 | head -1
+
+12. 2020-SE-01
+find ~ -perm 755 -exec chmod g+w {} \;
+
+13. 2020-SE-02
+if [ ! -f $1 ];then
+    echo "Wrong argument passed!"
+    exit 1
+fi
+
+mostfailures=$(cat $1 | tail -n +2 | grep "Failure" | cut -d '|' -f2 | uniq -c | sort -nr -t ' ' -k1 | awk -F ' ' '{print $2}')								 
+cat $1 | tail -n +2 | grep "$mostfailures" | sort -n -t '|' -k1 | head -n 1 |  sed 's/[[:digit:]]\+|\([[:alpha:]]\+\)|[[:alpha:]]\+|\([[:alpha:]]\+\)/\1:\2/g'
+
+14. 2022-CE-01
+find ~ -maxdepth 1 -user $(whoami) -type f -exec chmod 775 {} \; 2>/dev/null

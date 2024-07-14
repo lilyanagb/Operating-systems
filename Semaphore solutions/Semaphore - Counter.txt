@@ -1,0 +1,106 @@
+109. 2019-SE-01
+Semaphore s,t
+int cnt = 0
+s.init(0)
+t.init(0)
+
+process P
+p_1
+s.wait()
+cnt = cnt + 1
+if cnt == 3: t.signal()
+s.signal()
+t.wait()
+t.signal()
+p_2
+
+110. 2020-SE-01
+Semaphore s,t
+s.init(0)
+t.init(0)
+int cntP = 0
+int cntQ = 0
+
+process P 				process Q
+p_1 					q_1
+cntP = cntP + 1				cntQ = cntQ + 1
+if cntP == 1: cntP = 0 t.signal() 	if cntQ == 1: cntQ = 0 s.signal()
+s.wait()				t.wait()
+s.signal()				t.signal()	
+p_2 					q_2
+p_3 					q_3
+	
+111. 2022-CS-01
+Semaphore s,t
+s.init(1)
+t.init(0)
+
+process P 	process Q
+s.wait()	t.wait()
+p_1 		q_1
+p_2 		q_2
+		cnt = cnt + 1
+t.signal()	if cnt == 2: cnt = 0 s.signal()
+		else t.signal()
+
+112. 2022-IN-01
+Semaphore s,t,l
+s.init(0)
+t.init(1)
+l.init(0)
+int cnt = 0
+
+D
+while true:
+	t.wait()
+	cnt = cnt + 1
+	if cnt = M: s.signal() l.wait()
+	t.signal()
+	getVaccineFromTable()
+	administerVaccineToPatient()
+
+N
+while true:
+	s.wait()
+	reloadTableWithVaccines(M)
+	cnt = 0
+	l.signal()
+
+113. 2022-IN-02
+Semaphore s,t
+s.init(1)
+t.init(0)
+int cntP = 0
+int cntQ = 0
+
+process P 			process Q
+s.wait()			t.wait()
+p_1 				q_1
+p_2 				q_2
+cntP = cntP + 1			cntQ = cntQ + 1
+if cntP == 2: t.signal()	if cntQ == 3: s.signal()
+else s.signal()			else t.signal()
+
+114. 2023-IN-01
+Semaphore s,t,m
+s.init(1)
+t.init(0)
+m.init(0)
+int cnt = 0
+
+WHILE true
+p_1
+s.wait()
+cnt = cnt + 1
+if cnt == N: t.signal()
+s.signal()
+t.wait()
+t.signal()
+p_2
+s.wait()
+cnt = cnt - 1
+if cnt == 0: m.signal()
+s.signal()
+m.wait()
+m.signal()
+ENDWHILE

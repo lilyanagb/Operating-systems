@@ -1,0 +1,198 @@
+15. 2016-SE-01
+if [ -d $1 ]; then
+    echo "Symlinks: "
+    find $1 -type l
+    echo "Broken symlinks: "
+    find -L $1 -type l
+fi
+
+16. 2016-SE-02
+if [ $# -eq 1 ] && ( echo $1 | grep -q "^[[:digit:]]\+$" ) && [ "$(whoami)" = "root" ]; then
+    while read line; do
+        rss=$(echo "$line" | awk '{print $3}')
+        if [ $rss -gt $1 ];then
+            username=$(echo "$line" | awk '{print $1}')
+            if ( cat ~/log | grep -q "$username" );then
+                continue
+            fi
+            echo "$username" >> ~/log
+            pid=$(ps --user $username -o pid=,rss= --sort=-rss | head -1 | awk '{print $1}')
+            #uncomment the following line in order to make the task work
+            #kill -s KILL $pid
+            echo "KILL $pid of user: $username with rss: $rss"
+        fi
+    done < <(ps -e -o user=,pid=,rss= --sort=-rss)
+    exit 0
+else
+    echo "Wrong arguments passed!"
+    exit 1
+fi
+
+17. 2016-SE-03
+if [ "$(whoami)" = "root" ];then
+    while read user home
+    do
+        if [ ! -d $home ] || sudo -u $user [ ! -w $home ];then
+            echo "$user"
+        fi
+
+    done < <(cat /etc/passwd | awk -F ':' '{print $1 $6}')
+fi
+
+18. 2016-SE-03
+if [ $# -eq 2 ] && (echo "$1 $2" | grep -q "^[[:digit:]]\+ [[:digit:]]\+$") && [ $2 -gt $1 ];then
+    mkdir ./a ./b ./c
+    while read line
+    do
+        if [ $(cat $line | wc -l) -le $1 ];then
+            mv $line ./a
+        elif [ $(cat $line | wc -l) -ge $1 ] && [ $(cat $line | wc -l) -lt $2 ];then
+            mv $line ./b
+        else
+            mv $line ./c
+        fi
+    done < <(find . -type f)
+    exit 0
+else
+    echo "Wrong arguments passsed!"
+    exit 1
+fi
+
+19. 2016-SE-04
+if [ $# -ne 2 ] || [ ! -f $1 ] || [ ! -f $2 ] ;then
+    echo "Wrong arguments passed!"
+    exit 1
+fi
+
+a=$(grep "$1" $1 | wc -l)
+b=$(grep "$2" $2 | wc -l)
+
+if [ $a -gt $b ];then
+    cat $1 | grep -o "\"[[:print:]]\+\"[[:print:]]\+$" | sort -d >> ./$1.songs
+elif [ $a -lt $b ];then
+    cat $2 | grep -o "\"[[:print:]]\+\"[[:print:]]\+$" | sort -d >> ./$2.songs
+else
+    echo "Files has equal lines matching their filename"
+fi
+
+20. 2016-SE-06
+if [ $# -ne 1 ]; then
+	echo "Invalid arguments"
+	exit 1
+fi
+
+cat $1 | cut -d ' ' -f 4- | awk '{print NR".", $0}' | sort -d -t '.' -k2
+
+//втори начин
+line_no=0
+while read line; do
+	line_no=$(expr ${line_no} + 1)
+	line=$(echo ${line} | cut -d '-' -f 2-)
+	echo ${line_no}"."${line}
+done
+
+21. 2017-IN-01
+if [ $# -ne 3 ] || [ ! -f $1 ];then
+    echo "Wrong arguments passed!"
+    exit 1
+fi
+
+while read line; do
+    if ( cat $1 | grep "$3" | cut -d '=' -f2 | grep -q "$line" ); then
+        sed -i "s/\($3=[[:print:]]*\)$line\([[:print:]]*\)/\1\2/g" $1
+        sed -i "s/[[:space:]]\+/ /g" $1
+        sed -i "s/=[[:space:]]\+/=/g" $1
+    fi
+done < <(cat $1 | grep "$2" | cut -d '=' -f2 | tr ' ' '\n')
+
+22. 2017-IN-02
+if [ $# -ne 1 ] || [ $(whoami) != "root" ];then
+    echo "Wrong argument passed!"
+    exit 1
+fi
+
+processes=$(ps --user $1 | wc -l)
+
+while read line
+do
+    if [ $(echo "$line" | awk '{print $1}') -gt $processes ];then
+        echo "$line" | awk '{print $2}'
+    fi
+done < <(ps -e -o user= | sort | uniq -c)
+
+avg_time=$(ps -e -o times= | awk 'BEGIN{total=0}{total=total+$1}END{print (total/NR)*2}')
+
+while read line
+do
+    flag=$(echo "$line" | awk -v avg=$avg_time '{if(avg<$3)}{print 1}')
+    if [ $flag -eq 1 ];then
+        #kill -s KILL $(echo "$line" | awk '{print $1}')
+        echo "KILL process of user: $(echo "$line" | awk '{print $1}') pid: $(echo "$line" | awk '{print $2}')"
+    fi
+done < <(ps --user $1 -o user=,pid=,times=)
+
+23. 2017-IN-03
+last_file=0
+last_time=-1
+last_user=0
+
+while read user home; do
+	cur_file="$(find "${home}" -type f -printf '%T@ %f\n' | sort -nr -t ' ' -k 1 | head -n 1)"
+	
+	if [[ "$(echo "${cur_file}" | cut -d ' ' -f 1)" -gt "${last_time}" ]]; then
+		last_time="$(echo "${cur_file}" | cut -d ' ' -f 1)"
+		last_user="${user}"
+		last_file="$(echo "${cur_file}" | cut -d ' ' -f 2)"
+	fi
+done < <(cat /etc/passwd | cut -d ':' -f 1,6 | tr ':' ' ') 
+
+echo "The user is: ${last_user} with file ${last_file}"
+
+//втори вариант
+while read user home; do
+	last_user=$user
+	last_file=$(find $home -type f -printf "%T@ %P\n" 2>/dev/null | sort -nr -t ' ' -k1 | head -n 1)
+	
+	if ( echo "$last_file" | grep -q "^[[:print:]]\+$" ); then
+		echo "$last_user $last_file"
+     fi
+done < <(cat /etc/passwd | cut -d ':' -f1,6 | tr ':' ' ') | sort -nr -t ' ' -k3 | cut -d ' ' -f1,2 | head -1 -> целия аутпут сортира и кътва
+
+24. 2017-SE-01
+if [ ! -d $1 ];then
+    echo "Wrong argument passed!"
+    exit 1
+fi
+
+if [ $# -eq 1 ];then
+    find -L $1 -type l
+elif [ $# -eq 2 ] && (echo $2 | grep -q "^[[:digit:]]\+$");then
+    find $1 -printf "%P %n\n" | awk -v min=$2 '{if(min <= $2){print $0}}'
+else
+    echo "Wrong number of arguments passed!"
+    exit 2
+fi
+
+25. 2017-SE-02
+if [ $# -ne 3 ] || [ ! -d $1 ] || [ ! -d $2 ];then
+    echo "Wrong arguments passed!"
+    exit 1
+fi
+
+dst=$(find $2 -type f | wc -l)
+
+if [ "$dst" -gt 0 ]; then
+	echo "Destination is not empty"
+	exit 2
+fi
+
+if [ "$(whoami)" = "root" ];then
+    while read line; do
+	 real_name="$(echo "$line" | sed -E "s/"$1"\///")" -> тук ти замества SRC  с празно, т.е само останалото, което ни трябва да DST
+	 mkdir -p "$2/"$(dirname "$real_name")" -> взимаме само директорията без името на файла, за да я създадем преди да преместим
+	 mv "$line" "$2"/"$real_name"
+    done < <(find $1 -type f -name "*$3*")
+else
+    echo "You have no permission to complete this action!"
+    exit 1
+fi

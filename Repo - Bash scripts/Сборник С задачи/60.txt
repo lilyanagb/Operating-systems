@@ -1,0 +1,153 @@
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <err.h>
+#include <sys/stat.h>
+
+int cmp(const void* a, const void* b){
+        uint32_t x = *(const uint32_t *)a;
+        uint32_t y = *(const uint32_t *)b;
+
+        return x-y;
+}
+
+
+int main(int argc, char* argv[]){
+        if(argc != 2){
+                errx(1, "Incorrect number of args");
+        }
+
+        int fd1 = open(argv[1], O_RDWR);
+        if(fd1 == -1){
+                err(1,"Error in fd1");
+        }
+
+        struct stat st;
+        if(stat(argv[1], &st) == -1){
+                err(2,"Error in stat");
+        }
+
+        if(st.st_size > (long int)(100000000*sizeof(uint32_t))){
+                err(3, "Too long");
+        }
+
+        if(st.st_size % sizeof(uint32_t) != 0){
+                err(4, "Wrong size");
+        }
+
+        //256*100 000 000 > 400 000 000(max big file), so we need 2 files -- merge sort implemented
+        char file1[] = "/tmp/leftXXXXXX";
+        char file2[] = "/tmp/rightXXXXXX";
+        int fd2=mkstemp(file1);
+        int fd3=mkstemp(file2);
+
+        if(fd2 == -1 || fd3 == -1){
+                err(5, "Error in fd2 or f3 creation");
+        }
+
+        int half[2];
+        half[0] = (st.st_size / sizeof(uint32_t)) / 2;
+        half[1] = (st.st_size / sizeof(uint32_t)) - half[0];
+        int rs;
+
+        for(int i=0; i<2; i++){
+                uint32_t* buff = malloc(half[i]*sizeof(uint32_t));
+                if(buff == NULL){
+                        err(6, "buff is NULL");
+                }
+
+                if( (rs = read(fd1, buff, sizeof(uint32_t)*half[i])) != sizeof(uint32_t)*half[i]){
+                        err(7, "Error in reading");
+                }
+
+                qsort(buff, half[i], sizeof(uint32_t), cmp);
+
+                if(i == 0){
+                        if(write(fd2, buff, sizeof(uint32_t)*half[0]) == -1){
+                                err(8, "Error in writing in temp1");
+                        }
+                }else{
+                        if(write(fd3, buff, sizeof(uint32_t)*half[1]) == -1){
+                                err(9, "Error in writing in temp2");
+                        }
+                }
+                free(buff);
+        }
+
+        int offset1 = lseek(fd2, 0, SEEK_SET);
+        if(offset1 == -1){
+                err(10, "Error in lseek 1");
+        }
+
+        int offset2 = lseek(fd3, 0, SEEK_SET);
+        if(offset2 == -1){
+                err(11, "Error in lseek 2");
+        }
+
+        int offset3 = lseek(fd1, 0, SEEK_SET);
+        if(offset3 == -1){
+                err(23, "Error in offset3");
+        }
+
+        uint32_t a,b;
+        int i = 0, j = 0;
+        int rs1, rs2;
+
+        while((i < half[0]) && (j < half[1])){
+                offset1 = lseek(fd2, i*sizeof(uint32_t), SEEK_SET);
+                if(offset1 == -1){
+                        err(12, "Error in lseek 1");
+                }
+
+                offset2 = lseek(fd3, j*sizeof(uint32_t), SEEK_SET);
+                if(offset2 == -1){
+                        err(13, "Error in lseek 2");
+                }
+
+                if( (rs1 = read(fd2, &a, sizeof(uint32_t))) != sizeof(uint32_t)){
+                        err(14,"Error");
+                }
+                if( (rs2 = read(fd3, &b, sizeof(uint32_t))) != sizeof(uint32_t)){
+                        err(15,"Error");
+                }
+
+                if(a <= b){
+                        if(write(fd1, &a, sizeof(uint32_t)) == -1){
+                                err(16, "Error in writing");
+                        }
+
+                        i++;
+                }else{
+                        if(write(fd1, &b, sizeof(uint32_t)) == -1){
+                                err(17, "Error in writing");
+                        }
+
+                        j++;
+                }
+        }
+        printf("%d", i);
+        printf("%d", half[0]);
+        //sled kato edin ot broyachite stigne kraya, drugiya tryabva da dovurshi prezapiswavento na chislata
+        while(i<half[0]){
+                read(fd2, &a, sizeof(uint32_t));
+                if(write(fd1, &a, sizeof(uint32_t)) == -1){
+                        err(18, "Error in writing");
+                }
+                i++;
+        }
+
+        while(j<half[1]){
+                read(fd3, &b, sizeof(uint32_t));
+                if(write(fd1, &b, sizeof(uint32_t)) == -1){
+                        err(19, "Error in writing");
+                }
+                j++;
+        }
+
+        close(fd1);
+        close(fd2);
+        close(fd3);
+        exit(0);
+}

@@ -1,0 +1,111 @@
+#include <stdint.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <stdlib.h>
+#include <err.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <fcntl.h>
+
+struct triple{
+        uint16_t offset;
+        uint8_t original;
+        uint8_t new;
+};
+
+int main(int argc, char* argv[]){
+        if(argc != 4){
+                errx(1, "Incorrect number of arguments");
+        }
+
+        int fd1=open(argv[1], O_RDONLY);
+        if(fd1 == -1){
+                err(2, "Error in opening argv[1]");
+        }
+
+        int fd2=open(argv[2],O_RDONLY);
+        if(fd2 == -1){
+                close(fd1);
+                err(3, "Error in opening argv[2]");
+        }
+
+        int fd3=open(argv[3], O_CREAT | O_TRUNC | O_WRONLY, 0644);
+        if(fd3 == -1){
+                close(fd1);
+                close(fd2);
+                err(4, "Error in creating paste.bin");
+        }
+
+        struct stat st1;
+        struct stat st2;
+
+        if(fstat(fd1, &st1) == -1){
+                close(fd1);
+                close(fd2);
+                close(fd3);
+                err(5, "Error in getting the size of argv[1]");
+        }
+
+        if(fstat(fd2, &st2) == -1){
+                close(fd1);
+                close(fd2);
+                close(fd3);
+                err(6, "Error in getting the size of argv[2]");
+        }
+
+        if(st1.st_size != st2.st_size){
+                close(fd1);
+                close(fd2);
+                close(fd3);
+                err(7, "Files are not the same size");
+        }
+
+        int rs1,rs2;
+        struct triple t;
+        uint16_t offset;
+        uint8_t original;
+        uint8_t new;
+
+        while( (rs1 = read(fd1, &original, sizeof(original))) > 0) {
+                if( (rs2 = read(fd2, &new, sizeof(new))) == -1){
+                        close(fd1);
+                        close(fd2);
+                        close(fd3);
+                        err(8, "Error in reading fd2");
+                }
+
+                if(original != new){
+
+                        if((offset = lseek(fd1, 0, SEEK_CUR)-1) == -1){
+                                close(fd1);
+                                close(fd2);
+                                close(fd3);
+                                err(9, "Error in lseek");
+                        }
+
+                        t.offset = offset;
+                        t.original = original;
+                        t.new = new;
+
+                        if(write(fd3, &t, sizeof(t)) == -1){
+                                close(fd1);
+                                close(fd2);
+                                close(fd3);
+                                err(10, "Error in writing in fd3");
+                        }
+                }
+        }
+
+        if(rs1 == -1){
+                close(fd1);
+                close(fd2);
+                close(fd3);
+                err(11, "Error in reading");
+        }
+
+        close(fd1);
+        close(fd2);
+        close(fd3);
+        exit(0);
+}

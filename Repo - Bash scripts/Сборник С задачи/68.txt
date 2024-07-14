@@ -1,0 +1,109 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#include <err.h>
+#include <string.h>
+#include <unistd.h>
+
+int main(int argc, char** argv){
+        if(argc != 3 && argc != 5){
+                errx(1, "Incorrect number of arguments");
+        }
+
+        int rs;
+        char c;
+
+        if(strcmp(argv[1],"-c") == 0 && argc == 3){
+                if(strlen(argv[2]) == 1) {
+                        int num = argv[2][0] - '0';
+                        int pos = 1;
+
+                        while( (rs = read(0, &c, sizeof(c))) == sizeof(c)){
+                                if(num == pos) {
+                                        if(write(1, &c, sizeof(c)) == -1){
+                                                err(2, "Error in writing");
+                                        }
+                                }
+                                pos++;
+                        }
+
+                        if(rs == -1){
+                                err(3, "Error in reading");
+                        }
+                }
+                else {
+                        int num1 = argv[2][0] - '0';
+                        int num2 = argv[2][2] - '0';
+                        int pos = 1;
+
+                        if(num1 > num2){
+                                err(4, "Wrong arguments");
+                        }
+
+                        while( (rs = read(0, &c, sizeof(c))) == sizeof(c)){
+                                if(num1 <= pos && num2 >= pos){
+                                        if(write(1, &c, sizeof(c)) == -1){
+                                                err(5, "Error in writing");
+                                        }
+                                }
+                                pos++;
+                        }
+
+                        if(rs == -1){
+                                err(6, "Error in reading");
+                        }
+                }
+        }
+        else if(strcmp(argv[1],"-d") == 0 && strcmp(argv[3], "-f") == 0 && argc == 5) {
+                if(strlen(argv[4]) == 1) {
+                        int num = argv[4][0] - '0';
+                        int fields = 1;
+                        char delimeter = argv[2][0];
+
+                        while( (rs = read(0, &c, sizeof(c))) == sizeof(c)){
+                                if(delimeter == c) {
+                                        fields++;
+                                        continue;
+                                }
+
+                                if(num == fields) {
+                                        if(write(1, &c, sizeof(c)) == -1){
+                                                err(7, "Error in writing");
+                                        }
+                                }
+                        }
+
+                        if(rs == -1){
+                                err(8, "Error in reading");
+                        }
+                }
+                else {
+                        int num1 = argv[4][0] - '0';
+                        int num2 = argv[4][2] - '0';
+                        int fields = 1;
+                        char delimeter = argv[2][0];
+
+                        while( (rs = read(0, &c, sizeof(c))) == sizeof(c)){
+                                if(delimeter == c) {
+                                        fields++;
+                                        continue;
+                                }
+
+                                if(num1 <= fields && num2 >= fields) {
+                                        if(write(1, &c, sizeof(c)) == -1){
+                                                err(9, "Error in writing");
+                                        }
+                                }
+                        }
+
+                        if(rs == -1){
+                                err(10, "Error in reading");
+                        }
+                }
+        }
+        else {
+                err(11, "Error");
+        }
+
+        exit(0);
+}

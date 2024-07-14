@@ -1,0 +1,95 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <err.h>
+#include <stdint.h>
+#include <sys/stat.h>
+
+struct header{
+        uint32_t unused1;
+        uint16_t count; //iskame 5 i 6 bait da sa count, ostanalite ne sa vajni
+        uint16_t unused2;
+        uint64_t unused3;
+} __attribute__((packed));
+
+struct affixpair{ //komplekt koito generira izhodniya fail
+        uint16_t start;
+        uint16_t len;
+} __attribute__((packed));
+
+int main(int argc, char* argv[]){
+        if(argc != 7){
+                errx(1, "Incorrect number of args");
+        }
+
+        int fd[6];
+        for(int i=0; i<5; i++){
+                fd[i] = open(argv[i+1], O_RDONLY);
+
+                if(fd[i] == -1){
+                        err(2, "Error in opening files");
+                }
+        }
+
+        fd[5] = open(argv[6], O_CREAT | O_TRUNC | O_WRONLY, 0644);
+        if(fd[5] == -1){
+                err(3, "Error in creating file");
+        }
+
+        struct header h;
+        struct stat st;
+        int rs;
+
+        if(fstat(fd[0],&st) ==  -1){
+                err(9, "Error in stat");
+        }
+
+        if( (rs = read(fd[0], &h, sizeof(h))) != sizeof(h)){
+                err(4, "Error in reading affix header");
+        }
+
+        //ideyata na  count e da proverim sydyrjanieto na faila
+        if( (st.st_size - sizeof(h)) % sizeof(struct affixpair) != 0 ||
+                        (st.st_size - sizeof(h)) - sizeof(struct affixpair)*h.count != 0){
+                err(10, "Error in count");
+        }
+
+        struct affixpair affix;
+        uint64_t c; //reshenieto e da vzemem max promenliva ama da i zapisvame razlichen size
+        //uint8_t c;
+        //uint8_t second;
+        //uint32_t first;
+        //uint16_t third;
+        //uint64_t forth;
+        int size[4] = {4,1,2,8}; //post, pre, in, suff
+        int i=0;
+
+        while( (rs = read(fd[0], &affix, sizeof(affix))) == sizeof(affix)){ //dokato chetem pair
+                if(i == 4) i=0; //dostiga faila za zapisvane
+
+                if(lseek(fd[i+1], affix.start*size[i], SEEK_SET) == -1){
+                        err(5, "Error in lseek");
+                }
+
+                for(int j=0; j<affix.len; j++){
+                        if( (rs = read(fd[i+1], &c, size[i])) != size[i]){
+                                err(6, "Error in reading");
+                        }
+                        if( write(fd[5], &c, size[i]) != size[i]){
+                                err(7, "Error in writing");
+                        }
+                }
+                i++;
+        }
+
+        if(rs == -1){
+                err(8, "Error in reading");
+        }
+
+        for(int k=0; k<6; k++){
+                close(fd[k]);
+        }
+
+        exit(0);
+}

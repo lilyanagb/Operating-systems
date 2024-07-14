@@ -1,0 +1,102 @@
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#include <err.h>
+#include <unistd.h>
+
+struct header{
+        uint32_t magic;
+        uint8_t version;
+        uint8_t data_v;
+        uint16_t count;
+        uint32_t reserved1;
+        uint32_t reserved2;
+} __attribute__((packed));
+
+struct data_0 {
+        uint16_t offset;
+        uint8_t original;
+        uint8_t new;
+} __attribute__((packed));
+
+struct data_1 {
+        uint32_t offset;
+        uint16_t original;
+        uint16_t new;
+} __attribute__((packed));
+
+int main(int argc, char* argv[]){
+        if(argc != 4){
+                errx(1, "Incorrect number of args");
+        }
+
+        int fd1 = open(argv[1], O_RDONLY);
+        int fd2 = open(argv[2], O_RDONLY);
+        int fd3 = open(argv[3], O_CREAT | O_TRUNC | O_WRONLY, 0777);
+
+        if(fd1 == -1 || fd2 == -1 ||  fd3 == -1){
+                err(2, "Error in opening");
+        }
+
+        int rs;
+        struct header h;
+        struct data_0 data0;
+        struct data_1 data1;
+
+        if( (rs = read(fd1, &h, sizeof(h))) != sizeof(h)){
+                err(3, "Error in reading");
+        }
+
+        if(h.magic != 0xEFBEADDE ||  h.version != 0x01){
+                err(10, "error");
+        }
+
+        uint8_t version = h.data_v;
+
+        if(version == 0x00){
+                uint8_t c1;
+
+                while( (rs = read(fd2, &c1, sizeof(c1))) == sizeof(c1)){
+                        write(fd3, &c1, sizeof(c1));
+                }
+
+                while( (rs = read(fd1, &data0, sizeof(data0))) == sizeof(data0)){
+                        uint16_t offset=data0.offset;
+                        uint8_t original=data0.original;
+                        uint8_t new=data0.new;
+                        printf("%02X, %02X, %02X\n", offset, original, new);
+                        lseek(fd2, offset, SEEK_SET);
+                        lseek(fd3, offset, SEEK_SET);
+                        if( (rs = read(fd2, &c1, sizeof(c1))) != sizeof(c1)){
+                                err(4, "Error");
+                        }
+
+                        if( c1 != original ){
+                                err(13, "Error");
+                        }
+
+                        write(fd3, &new, sizeof(uint8_t));
+
+                }
+        }else if(version == 0x01){ //da se opravi kato pyrviya if
+                uint16_t c1;
+                while( (rs = read(fd1, &data1, sizeof(data1))) == sizeof(data1)){
+                        uint32_t offset=data1.offset;
+                        uint16_t original=data1.original;
+                        uint16_t new=data1.new;
+
+                        lseek(fd2, offset, SEEK_SET);
+                        lseek(fd3, offset, SEEK_SET);
+                        if( (rs = read(fd2, &c1, sizeof(c1))) != sizeof(c1)){
+                                err(4, "Error");
+                        }
+
+                        if( c1 != original ){
+                                write(fd3, &new, sizeof(uint16_t));
+                        }
+                }
+        }
+
+        exit(0);
+}

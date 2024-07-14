@@ -1,0 +1,66 @@
+#include <stdio.h>
+#include <err.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <sys/wait.h>
+#include <string.h>
+
+const char words[3][4] = {"tic ", "tac ", "toe\n"};
+
+int main(int argc, char* argv[]){
+        if( argc != 3){
+                errx(1, "Incorrect number of arguments");
+        }
+
+        char* endptr;
+        long NC = strtol(argv[1], &endptr, 10);
+        long WC = strtol(argv[2], &endptr, 10);
+
+        if(NC < 1 || NC > 7){
+                err(2, "Incorrect argv[1]");
+        }
+
+        if(WC < 1 || WC > 35){
+                err(3, "Incorrect argv[2]");
+        }
+
+        uint8_t counter = 0;
+
+        while( counter < WC ){
+                if( write(0, &words[counter%3], 4) != 4){
+                        err(4, "Error in writing");
+                }
+
+                counter++;
+
+                for(int i=0; i < NC && counter < WC; i++){
+                        pid_t pid = fork();
+
+                        if(pid == -1){
+                                err(5, "Error in fork");
+                        }
+
+                        if(pid == 0){
+                                printf("\nChild");
+                                if(write(0, &words[counter%3], 4) != 4){
+                                        err(6, "Error in writing");
+                                }
+                                exit(0);
+                        }
+
+                        int status;
+                        if(wait(&status) == -1){
+                                err(7, "child process not finish");
+                        }
+
+                        if(!WIFEXITED(status) || WEXITSTATUS(status) != 0){
+                                err(8, "Error in exited status");
+                        }
+
+                        counter++;
+                }
+
+        }
+}

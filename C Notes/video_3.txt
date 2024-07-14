@@ -1,0 +1,284 @@
+Задачите от папка 7 в гитхъб
+Задача 6.Да се напише програма на С, която получава като параметър команда (без параметри) и при успешното ѝ изпълнение, извежда на стандартния изход името на командата.
+
+Plan:
+P1				P2
+wait				exec
+check exit status
+if 0 => print
+
+int main(int argc, char* argv[]) {
+
+if(argc != 2){
+	errx(1, "Incorrect number of arguments given!");	
+}
+
+int status;
+int pid=fork();
+
+if(pid > 0){
+	wait(&status);
+
+	if(WIFEXITED(status)){
+		if( WEXITSTATUS(status) == 0 ){
+			printf("%s\n", argv[1]);
+		}
+	}
+} else {
+	if(execl(argv[1], argv[1], (char *)NULL == -1)){
+		err(1,"Exec failed!");
+	}
+
+exit(0);
+}
+}
+
+Проверка:
+./main /bin/true - връща
+./main /bin/false - не се изпълнява
+./main /bin/does-not-exist - хвърля грешка
+
+Задача 7.Да се напише програма на С, която получава като параметри три команди (без параметри), изпълнява ги последователно, като изчаква края на всяка и извежда на стандартния изход номера на завършилия процес, както и неговия код на завършване.
+
+int main(int argc, char* argv[]){
+
+if(argc != 4){
+	errx(1, "Incorrect number of arguments given!");	
+}
+
+int status;
+
+for (int i = 1;i<argc;i++){
+	int pid=fork();
+
+	if(pid > 0){
+		int child_pid = wait(&status); -> трябва някое дете да е умряло, в случая имаме 1 дете
+
+		if(WIFEXITED(status)){
+			int exit_status = WEXITSTATUS(status);
+			printf(Child %d exited with status %d.", child_pid, exit_status);
+			}
+		} else {
+			printf("ERROR: Child %d did not exit on its own.", child_pid);
+		}
+	} else {
+		if(execl(argv[i], argv[i], (char *)NULL == -1)){
+			err(1,"Exec failed!");
+		}
+}
+exit(0);
+}
+
+Задача 8.Да се напише програма на С, която получава като параметър име на файл. Създава процес син, който записва стринга foobar във файла (ако не съществува, го създава, в противен случай го занулява), след което процеса родител прочита записаното във файла съдържание и го извежда на стандартния изход, добавяйки по един интервал между всеки два символа.
+
+int main(int argc, char* argv[]){
+
+if(argc != 2){
+	errx(1, "Incorrect number of arguments given!");	
+}
+
+int fd = open(argv[1], O_CREAT | O_TRUNC | O_RDWR, S_IRUSR | S_IWUSR );
+if (fd == -1){
+	err(1,"Open failed");
+}
+
+int pid=fork();
+
+if(pid == 0){ -> разделяме си логиката първо за детето, после си работим само в парента
+	if (write(fd, "foobar", 6) != 6){
+		err(1,"Write failed");
+	}
+	close(fd);
+	exit(0);
+}
+
+int status;
+wait(&status);
+
+-> след wait, защото сме си гарантирали, че курсорът е преместен !
+-> алтернатива е да сложим open един път в иф-а за детето, и един път после ( ама трябва да махнем O_CREAT и O_TRUNC от бащата, както и детето ще има само права за писане, а бащата за четене)
+
+lseek(fd, 0, SEEK_SET);
+int read_status;
+char c;
+int iterator;
+char* result = malloc(12); -> foobar + 5 spaces + \0
+
+if (result == (char *)NULL){
+	close(fd);
+	err(3,"Malloc failed");
+}
+
+while ( (read_status = read(fd, &c, 1)) != 0) {
+	if (read_status == -1){
+		err(2,"Read failed");
+	}
+	
+	result[iterator]=c;
+	iterator++;
+	result[iterator]=' ';
+	iterator++;
+}
+iterator--;
+result[iterator]='\0';
+
+printf("Parent: %s\n", result);
+free(result);
+close(fd);
+exit(0);
+}
+
+Задача.
+
+int main(int argc, char* argv[]){
+
+if(argc != 2){
+	errx(1, "Incorrect number of arguments given!");	
+}
+
+int fd = open(argv[1], O_CREAT | O_TRUNC | O_RDWR, S_IRUSR | S_IWUSR );
+if (fd == -1){
+	err(1,"Open failed");
+}
+
+int pid=fork();
+
+if(pid == 0){
+	unsigned int fair_play = rand();
+	printf("Child generated: %d\n", fair_play);
+
+	if (write(fd, &fair_play, sizeof(fair_play) != sizeof(fair_play))){
+		err(1,"Write failed");
+	}
+	close(fd);
+	exit(0);
+}
+
+int status;
+wait(&status);
+
+unsigned int var = 0;
+
+lseek(fd, 0, SEEK_SET);
+
+if ( read(fd, &var, sizeof(var)) != sizeof(var) ) {
+	err(2,"Read failed");
+}
+
+printf("Parent read: %d\n", var);
+
+close(fd);
+exit(0);
+}
+
+Задача 9.Да се напише програма на C, която която създава файл в текущата директория и генерира два процесa, които записват низовете foo и bar в създадения файл.
+Програмата не гарантира последователното записване на низове.
+Променете програмата така, че да записва низовете последователно, като първия е foo.
+
+int main(int argc, char* argv[]){
+
+if(argc != 2){
+	errx(1, "Incorrect number of arguments given!");	
+}
+
+int fd = open(argv[1], O_CREAT | O_TRUNC | O_RDWR, S_IRUSR | S_IWUSR );
+if (fd == -1){
+	err(1,"Open failed");
+}
+
+int pid=fork();
+
+if(pid == 0){
+	if (write(fd, "foo", 3) != 3){
+		err(1,"Write failed");
+	}
+	close(fd);
+	exit(0);
+}
+
+int useless;
+wait(&useless);
+int pid2=fork();
+
+if(pid2 == 0){
+	if (write(fd, "bar", 3) != 3){
+		err(1,"Write failed");
+	}
+	close(fd);
+	exit(0);
+}
+
+close(fd);
+exit(0);
+}
+
+Тестване: 
+for i in $(seq 1 15); do
+./main test
+echo
+done
+
+Задача 10.Да се напише програма на C, която получава като параметри от команден ред две команди (без параметри). Изпълнява първата. Ако тя е завършила успешно изпълнява втората. Ако не, завършва с код 42.
+
+int main(int argc, char* argv[]){
+
+if(argc != 3){
+	errx(1, "Incorrect number of arguments given!");	
+}
+
+int pid=fork();
+
+if(pid == 0){
+	if ( execl(argv[1], "first", (char *)NULL) == -1 ) {
+		err(2, "Exec failed");
+	}
+}
+
+int status;
+wait(&status);
+
+if(WIFEXITED(status) && WEXITSTATUS(status) == 0){
+	int pid2=fork();
+	if( pid2 == 0){
+		if ( execl(argv[2], "second", (char *)NULL) == -1 ) {
+			err(2, "Exec failed");
+		}
+	} else{
+		exit(42);
+	}
+}
+exit(0);
+}
+
+
+Задача 11.Да се напише програма на C, която изпълнява последователно подадените ѝ като параметри команди, като реализира следната функционалност постъпково:
+main cmd1 ... cmdN Изпълнява всяка от командите в отделен дъщерен процес.
+... при което се запазва броя на изпълнените команди, които са дали грешка и броя на завършилите успешно.
+
+int main(int argc, char* argv[]){
+
+unsigned int fail = 0, success = 0;
+for( int i=1;i<argc;i++){
+	int pid=fork();
+
+	if(pid == 0){
+	//Child
+		if ( execl(argv[i], argv[i], (char *)NULL) == -1 ) {
+			err(2, "Exec failed");
+		}
+	}
+	
+	//Parent
+	int status;
+	wait(&status);
+
+	if(WIFEXITED(status) && WEXITSTATUS(status) == 0){
+		success++;
+	} else {
+		fail++;
+	}
+}
+
+printf("Successes: %d, Failures: %d\n", success,fail);
+exit(0);
+}

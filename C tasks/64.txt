@@ -1,0 +1,82 @@
+#include <stdlib.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <err.h>
+#include <stdint.h>
+
+struct triple {
+        uint16_t offset;
+        uint8_t original;
+        uint8_t new;
+}__attribute__((packed));
+
+int main(int argc, char *argv[]){
+        if(argc != 4){
+                errx(1, "Incorrect number of arguments");
+        }
+
+        int fd1 = open(argv[1], O_RDONLY);
+        if(fd1 == -1){
+                err(2, "Error in open fd1");
+        }
+
+        int fd3 = open(argv[3], O_RDONLY);
+        if(fd3 == -1){
+                err(3, "Error in open fd3");
+        }
+
+        int fd2 = open(argv[2], O_CREAT | O_TRUNC | O_WRONLY, 0644);
+        if(fd2 == -1){
+                err(4, "Error in creating fd2");
+        }
+
+        int rs1, rs2, rs3;
+        struct triple t;
+        uint8_t c;
+
+        //Copying fd1 to fd3
+        while( (rs1 = read(fd1, &c, sizeof(c))) == sizeof(c)){
+                if(write(fd2, &c, sizeof(c)) != sizeof(c)){
+                        err(9, "Error in copying");
+                }
+        }
+
+        if(rs1 == -1){
+                err(10, "Error in reading fd1");
+        }
+
+        //Start changing fd3
+        while( (rs2 = read(fd3, &t, sizeof(t)) ) == sizeof(t)){
+
+                if(lseek(fd1, t.offset, SEEK_SET) == -1){
+                        err(8, "Error in lseek");
+                }
+
+                if( (rs3 = read(fd1, &c, sizeof(c)) ) != sizeof(c)){
+                        err(6, "Error in reading");
+                }
+
+                if(c != t.original){
+                        err(11, "Error in comparison");
+                }
+
+                if(lseek(fd2, t.offset, SEEK_SET) == -1){
+                        err(12, "Error in lseek");
+                }
+
+
+                if( write(fd2, &t.new, sizeof(t.new)) != sizeof(t.new)){
+                        err(7, "Error in writing");
+                }
+        }
+
+        if(rs2 == -1){
+                err(12, "Error in reading");
+        }
+
+        close(fd1);
+        close(fd2);
+        close(fd3);
+        exit(0);
+}

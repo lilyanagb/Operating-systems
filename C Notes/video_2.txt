@@ -1,0 +1,376 @@
+Примерна задача.2
+/*
+	Реализирайте команда head без опции (т.е. винаги да извежда
+	на стандартния изход само първите 10 реда от съдържанието на
+	файл подаден като първи параматър)
+*/
+
+#include <fcntl.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+int main(int argc, char* argv[])
+{
+	int fd1;
+	int i = 0;
+	char c;
+
+	if (argc != 2) {
+		write(2, "err\n", 4);
+		exit(1);
+	}
+
+	if ((fd1 = open(argv[1], O_RDONLY)) == -1) {
+		write(2, "File failed to open in read mode\n", 33);
+		exit(1);
+	}
+
+	while (read(fd1, &c, sizeof(c))) { -> да се добави проверка
+		if (c == '\n') {
+			i=i+1;
+		}
+
+		write(1, &c, 1);
+
+		if (i == 10) {
+			break;
+		}
+	}
+
+	close(fd1);
+	exit(0);
+}
+
+Примерна задача.3
+// Реализирайте команда wc, с един аргумент подаден като входен параметър (като няма лош сценарии за табулации или няколко спейса - може да се реализира с while вместо if за спейсовете // също и ако е само един ред дава, че е 0)
+#include <unistd.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#include <stdio.h>
+
+int main (int argc, char* argv[]){
+	int fd1;
+	char c;
+	int lines = 0;
+	int words = 0;
+	int chars = 0;
+
+	if (argc != 2) {
+		fprintf(stderr, "err\n");
+		exit(1);
+	}
+
+	if ( (fd1 = open(argv[1], O_RDONLY)) == -1 ) {
+		fprintf(stderr, "Operation open failed\n");
+		exit(1);
+	}
+
+	while ( read(fd1, &c, sizeof(c)) > 0 ) {
+		if (c=='\n') {
+			lines++;
+			words++;
+		}
+
+		if (c==' ') {
+			words++;
+		}
+
+		chars++;
+	}
+
+	printf("File %s has:\n%d number of lines.\n%d number of words.\n%d number of chars.\n",
+		argv[1], lines, words, chars);
+	close(fd1);
+}
+
+Примерна задача. 4
+/*
+	Реализирайте команда swap, разменяща съдържанието на два файла, подадени като
+	входни параметри. Приемаме, че двата файла имат еднакъв брой символи. Може да
+	модифицирате решението, да работи и когато нямат еднакъв брой символи.
+*/
+
+#include <stdio.h>
+#include <err.h>
+#include <fcntl.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+
+int main (int argc, char* argv[])
+{
+	if (argc != 3) {
+		errx(1, "err");
+	}
+
+	int fd1;
+	fd1 = open(argv[1], O_RDWR);
+	if (fd1 == -1) {
+		err(2, "%s", argv[1]);
+	}
+
+	int fd2;
+	fd2 = open(argv[2], O_RDWR);
+	if (fd2 == -1) {
+		close(fd1);
+		err(3, "%s", argv[2]);
+	}
+
+	int fd3;
+	fd3 = open("my_temp_file", O_CREAT | O_RDWR | O_TRUNC, S_IRUSR | S_IWUSR);
+	if (fd3 == -1) {
+		close(fd1);
+		close(fd2);
+		err(4, "%s", "my_temp_file");
+	}
+
+	char c[4096];
+	ssize_t read_size;
+
+
+	while ((read_size = read(fd1, &c, sizeof(c))) > 0) {
+		if (write(fd3, &c, read_size) != read_size ) {
+			close(fd1);
+			close(fd2);
+			close(fd3);
+			err(1, "Error while writing");
+		}
+	}
+	if (read_size != 0) {
+		close(fd1);
+		close(fd2);
+		close(fd3);
+		err(2, "Error while reading");
+	}
+
+	lseek(fd1, 0, SEEK_SET);
+
+	while ((read_size = read(fd2, &c, sizeof(c))) > 0 ) {
+		if (write(fd1, &c, read_size) != read_size) {
+			close(fd1);
+			close(fd2);
+			close(fd3);
+			err(1, "Error while writing");
+		}
+	}
+	if (read_size != 0) {
+		close(fd1);
+		close(fd2);
+		close(fd3);
+		err(2, "Error while reading");
+	}
+
+	lseek(fd2, 0, SEEK_SET);
+	lseek(fd3, 0, SEEK_SET);
+
+	while ((read_size = read(fd3, &c, sizeof(c))) > 0) {
+		if (write(fd2, &c, read_size) != read_size) {
+			close(fd1);
+			close(fd2);
+			close(fd3);
+			err(1, "Error while writing");
+		}
+	}
+	if (read_size != 0) {
+		close(fd1);
+		close(fd2);
+		close(fd3);
+		err(2, "Error while reading");
+	}
+
+	close(fd1);
+	close(fd2);
+	close(fd3);
+
+	exit(0);
+}
+
+----------------------------
+Системни примитиви на С за работа с процеси
+execl(3) int execl(const char *path, const char *arg, .../*(char *) NULL */); - сменя байнъри файла, който процеса ни изпълнява
+(char *) NULL - указва къде ни свършват аргументите
+-1 при неуспех
+
+execlp(3) int execlp(const char *file, const char *arg, .../*(char *) NULL */); - автоматично намира пътя, от който се вика командата (за разлика от execl, т.е можем да подадем само date, а не usr/bin)
+
+execl() is needed for executing executables (like ls) from command line as you can't go with execlp() in that case.
+
+fork(2) pid_t fork(void); - create a new process by duplicating the calling process. (child process)
+"почти точно копие" - в детето връща 0, в родителя връща детето.
+
+Process A:
+	3 -> pesho
+Process B:
+	3 -> gosho
+	read(3,buf,10)
+Process C: fork of B
+	3 -> gosho (достъп до същия файлов дескриптор)
+	read(3,buf,50) 10-60 
+OS:
+	FD1 -> pesho
+	FD2 -> gosho
+		pos = 60 -> курсорът е общ, към една структура сочи
+	X FD3 -> gosho (ГРЕШНО)
+
+wait(2) pid_t wait(int *wstatus); - замръзва до момента, в който някое дете не умре; връща пид-а на процеса, който е умрял, за да може да unblock-не; в статус получаваме инфо как е завършил процеса (детето, което е умряло) и има макроси, с които да проверяваме (WIFEXITED - проверява дали е умряло по собствено желание, WEXITSTATUS - какъв е бил екзит статуса, ако е умряло по собствено желание, иначе не се сетва екзит статус)
+ЗА ПО-ПРЕЦИЗНО: pid_t waidpid(pid_t pid. int *wstatus, int options); 
+options: WNOHANG, WUNTRACED, WCONTINUED
+pid:
+-1 чакаме за промяна на статуса на някое дете, ако искаме конкретно - първия аргумент трябва да е конкретен пид
+>0 конкретен пид
+
+getpid(2) pid_t getpid(void);
+	    pid_t getppid(void);
+
+Примерна задача.1
+/*
+	Да се напише програма на C, която изпълнява команда date.
+*/
+
+#include <unistd.h>
+#include <stdlib.h>
+#include <err.h>
+#include <stdio.h>
+
+int main(void)
+{
+	if (execl("/bin/date", "date", (char*)NULL) == -1) { -> ако фейлне ще се изпринти иф-а
+		err(99, "err execling");
+	} else {
+		printf("foobar\n"); -> никога няма да бъде изпълнена ако execl мине успешно (ще се промени байнъри файла, който процеса, който сме стартирали изпълнява)
+	}
+
+	exit(0);
+}
+
+Примерна задача.2
+/*
+	Да се напише програма на C, която изпълнява команда ls с точно един аргумент.
+*/
+
+#include <unistd.h>
+#include <stdlib.h>
+#include <err.h>
+#include <stdio.h>
+
+int main (int argc, char* argv[])
+{
+
+	if (argc != 2) {
+		errx(1, "err");
+	}
+
+	if (execlp("/bin/ls", "ls", argv[1], 0) == -1) {
+		err(99, "err execling");
+	} else {
+		printf("foobar\n");
+	}
+
+	exit(0);
+}
+
+Примерна задача.3
+/*
+	Да се напише програма на C, която изпълнява команда sleep (за 60 секунди).
+*/
+
+#include <unistd.h>
+#include <stdlib.h>
+#include <err.h>
+#include <stdio.h>
+
+int main(void)
+{
+	if (execl("/bin/sleep", "pesho", "60", 0) == -1) { (сменяме името на командата, може да проверим с ps -u krasi -o pid,cmd)
+		err(99, "err execling");
+	} else {
+		printf("foobar\n");
+	}
+
+	exit(0);
+}
+
+Примерна задача.4
+/*
+	Да се напише програма на C, която създава процес дете и демонстрира
+принцина на конкурентност при процесите.
+*/
+
+#include <unistd.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <err.h>
+
+int main(void) -> нямаме гаранция кой процес ще хване ресурс
+{
+	int n = 1000000;
+
+//Process A
+	pid_t a = fork();
+	if (a == -1) {
+		err(1, "BOO");
+	}
+	if (a > 0) { -> ще върне две различни неща (бащата ще е тук)
+//Process A & B
+//in process A fork() = pid of B
+//in process B fork() = 0
+		for (int i = 0; i < n; i++) {
+//			printf("father\n");
+			write(1,"F", 1);
+		}
+	} else {
+		for (int i = 0; i < n; i++) {
+//			printf("son\n");
+			write(1,"S", 1);
+		}
+	}
+
+	write(1,"\n", 1);
+
+	exit(0);
+}
+
+
+
+fork();
+int a = 5;
+while ( a < 10 ){
+	printf("Both processeds");
+}
+
+Примерен код.5
+/*
+	Да се напише програма на C, която е аналогична на горния пример, но
+	принуждава бащата да изчака сина си да завърши.
+*/
+
+#include <unistd.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <err.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+
+int main(void)
+{
+	int n = 1000000;
+	int status;
+
+	pid_t a = fork();
+	if (a == -1) {
+		err(1, "BOO");
+	}
+	if (a > 0) {
+		wait(&status); -> разликата
+		for (int i = 0; i < n; i++) {
+			printf("father\n");
+		}
+	} else {
+		for (int i = 0; i < n; i++) {
+			printf("son\n");
+		}
+	}
+
+	exit(0);
+}

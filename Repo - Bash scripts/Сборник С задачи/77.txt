@@ -1,0 +1,83 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <err.h>
+#include <fcntl.h>
+#include <unistd.h>
+
+struct header{
+        uint16_t magic;
+        uint16_t filetype;
+        uint32_t count;
+} __attribute__((packed));
+
+struct pair{
+        uint16_t offset_data;
+        uint16_t offset_out;
+} __attribute__((packed));
+
+int main(int argc, char* argv[]){
+        if(argc != 4){
+                errx(1, "incorrect number of args");
+        }
+
+        int fd1 = open(argv[1], O_RDONLY);
+        int fd2 = open(argv[2], O_RDONLY);
+        int fd3 = open(argv[3], O_CREAT | O_TRUNC | O_WRONLY, 0644);
+
+        if( fd1 == -1 || fd2 == -1 || fd3 == -1){
+                err(2, "Error in opening");
+        }
+
+        int rs;
+        struct header list_header;
+        struct header data_header;
+        struct header out_header;
+        struct pair p;
+
+        if( (rs = read(fd1, &list_header, sizeof(list_header))) == -1){
+                err(3, "Cannot read fd1");
+        }
+
+        if( list_header.magic != 0x5A4D || list_header.filetype != 1){
+                err(4,"Incorrect header format in argv[1]");
+        }
+
+        uint32_t c_data;
+        uint64_t c_out;
+        int rs1;
+
+        out_header.magic = 0x5A4D;
+        out_header.filetype = 3;
+        out_header.count = 5; //da proverya kak da go dobavya
+
+        if(write(fd3, &out_header, sizeof(out_header)) == -1){
+                err(9, "error in adding headere in fd3");
+        }
+
+        while( (rs = read(fd1, &p, sizeof(p))) > 0){
+                int offset_data = lseek(fd2, sizeof(data_header) + p.offset_data*sizeof(uint32_t), SEEK_SET);
+                if(offset_data == -1){
+                        err(5,"Error in offset_data");
+                }
+
+                if( (rs1 = read(fd2, &c_data, sizeof(c_data))) != sizeof(c_data)){
+                        err(6, "Error in reading fd2");
+                }
+
+                c_out = (uint64_t)c_data;
+                int offset_out = lseek(fd3, sizeof(out_header) + p.offset_out*sizeof(uint64_t), SEEK_SET);
+                if(offset_out == -1){
+                        err(7, "Error in offset_out");
+                }
+
+                if(write(fd3, &c_out, sizeof(c_out)) == -1){
+                        err(8, "Error in writing in fd3");
+                }
+        }
+
+        close(fd1);
+        close(fd2);
+        close(fd3);
+        exit(0);
+}

@@ -1,0 +1,47 @@
+-----------------------foo.c
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <err.h>
+#include <fcntl.h>
+#include <unistd.h>
+
+int main(int argc, char* argv[]) {
+        if (argc != 2)
+                err(1, "Wrong number of arguments");
+
+        const char* myfifo = "/tmp/84fifo";
+        //taka pravim fail dostypen za chetene i zapis
+        if (mkfifo(myfifo, 0666) == -1)
+                err(1, "mkfifo failed");
+
+        int fd = open(myfifo, O_WRONLY);
+        if (fd == -1)
+                err(1, "Opening failure!");
+
+        //vsichko shte byde preprateno kum fifo kanala
+        dup2(fd, 1);
+
+        if (execlp("cat", "cat", argv[1], (char*)NULL) == -1)
+                err(1, "Execlp failed");
+}
+
+-----------------------bar.c
+
+#include <stdlib.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <err.h>
+
+int main(int argc, char* argv[]) {
+        if (argc != 2)
+                err(1, "Invalid arguments");
+
+        int fd = open("/tmp/84fifo",O_RDONLY);
+        if (fd == -1)
+                err(1,"Opening failure");
+
+        //vhodut na execlp shte se prochete ot fifo kanala
+        dup2(fd,0);
+        if (execlp(argv[1], argv[1], (char*)NULL) == -1)
+                err(1, "execlp failed");
+}

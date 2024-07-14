@@ -1,0 +1,91 @@
+#include <stdlib.h>
+#include <fcntl.h>
+#include <stdint.h>
+#include <err.h>
+#include <sys/types.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+struct triple{
+        uint16_t offset;
+        uint8_t length;
+        uint8_t useless;
+};
+
+int main(int argc, char* argv[]){
+        if(argc != 5){
+                errx(1,"Incorrect number of arguments");
+        }
+
+        int fd1 = open(argv[1], O_RDONLY);
+        if( fd1 == -1){
+                err(2, "Error in opening argv[1]");
+        }
+
+        int idx1 = open(argv[2], O_RDONLY);
+        if( idx1 == -1){
+                err(3, "Error in opening argv[2]");
+        }
+
+        int fd2 = open(argv[3], O_CREAT | O_TRUNC | O_WRONLY, 0644);
+        if( fd2 == -1){
+                err(4, "Error in opening argv[3]");
+        }
+
+        int idx2 = open(argv[4], O_CREAT | O_TRUNC | O_WRONLY, 0644);
+        if( idx2 == -1){
+                err(5, "Error in opening argv[4]");
+        }
+
+        struct triple t;
+        int read_status;
+
+        while( (read_status = read(idx1, &t, sizeof(t))) > 0){
+                lseek(fd1, t.offset, SEEK_SET);
+                uint8_t* buff = malloc(t.length);
+
+                if(read(fd1, buff, t.length) == -1) {
+                        free(buff);
+                        close(fd1);
+                        close(fd2);
+                        close(idx1);
+                        close(idx2);
+                        err(6, "Error in reading fd1");
+                }
+
+                if(buff[0] >= 'A' && buff[0] <= 'Z' ){
+                        t.offset = lseek(fd2, 0, SEEK_CUR);
+                        if(write(fd2, buff, t.length) == -1){
+                                free(buff);
+                                close(fd1);
+                                close(fd2);
+                                close(idx1);
+                                close(idx2);
+                                err(7, "Error in writing fd2");
+                        }
+                        // FIXME: offset in the original != offset in the new idx file
+                        if(write(idx2, &t, sizeof(t)) == -1){
+                                free(buff);
+                                close(fd1);
+                                close(fd2);
+                                close(idx1);
+                                close(idx2);
+                                err(8, "Error in writing idx2");
+                        }
+                }
+        }
+
+        if(read_status == -1){
+                close(fd1);
+                close(fd2);
+                close(idx1);
+                close(idx2);
+                err(9,"Error in reading idx1");
+        }
+
+        close(fd1);
+        close(fd2);
+        close(idx1);
+        close(idx2);
+        exit(0);
+}

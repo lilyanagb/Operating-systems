@@ -1,0 +1,132 @@
+#include <stdlib.h>
+#include <stdio.h>
+#include <fcntl.h>
+#include <err.h>
+#include <unistd.h>
+#include <string.h>
+#include <sys/wait.h>
+
+int main(int argc, char *argv[]){
+        if(argc > 2){
+                errx(20, "Incorrect num of args");
+        }
+
+        char str;
+        int counter = 0;
+        int rs;
+
+        while( (rs=read(0, &str, sizeof(str))) == sizeof(str)){
+                int pf[2];
+                if(pipe(pf) == -1){
+                        err(1, "Error in pipe");
+                }
+
+                pid_t pid = fork();
+                if(pid == -1){
+                        err(2, "Error in fork");
+                }
+
+                //Parent
+                if(pid > 0){
+                        close(pf[0]);
+
+                        if(write(pf[1], &str, sizeof(str)) != sizeof(str)){
+                                err(3, "Error in writing");
+                        }
+                        counter++;
+                        int words=0;
+                        //zapisvane na simvolite v trubata do postigane na opredeleno uslovie
+                        while( (rs = read(0, &str, sizeof(str))) == sizeof(str)){
+                                if(str == 0x20 || str == 0x0A){
+                                        words++;
+                                        counter=0;
+                                        str=' ';
+
+                                        if(words >= 2) break;
+                                        if(write(pf[1], &str, sizeof(str)) != sizeof(str)){
+                                                err(4, "Error in writing");
+                                        }
+                                        continue;
+                                }
+                                counter++;
+
+                                if(counter > 4){
+                                        err(5, "Max counter 4");
+                                }
+                                if(write(pf[1], &str, sizeof(str)) != sizeof(str)){
+                                        err(6, "Error in writing");
+                                }
+                        }
+
+                        if(rs == -1){
+                                err(7, "Error in rs");
+                        }
+
+                        close(pf[1]);
+                        int status;
+                        wait(&status);
+                        if(WEXITSTATUS(status) != 0){
+                                err(8, "Error in status");
+                        }
+                } else if(pid == 0){
+                        if(argc == 1){
+                                close(pf[1]);
+                                char buff[9] = { '\0' };
+                                if(read(pf[0], buff, sizeof(buff)) == -1){
+                                        err(9, "Error in reading");
+                                }
+                                if(execlp("echo","echo",buff,(char*)NULL) == -1){
+                                        err(10, "Execlp failed!");
+                                }
+                        } else{
+                                close(pf[1]);
+                                char f1[4] = { '\0' };
+                                char f2[4] = { '\0' };
+                                int index = 0;
+                                char c;
+
+                                while( (rs = read(pf[0], &c, sizeof(c))) != 0){
+                                        if(c == ' '){
+                                                index = 0;
+                                                break;
+                                        }
+                                        f1[index] = c;
+                                        index++;
+                                }
+
+                                if(rs == -1){
+                                        err(11, "Error in reading");
+                                }
+
+                                while( (rs = read(pf[0], &c, sizeof(c))) != 0){
+                                        if(c == ' '){
+                                                index = 0;
+                                                break;
+                                        }
+                                        f2[index] = c;
+                                        index++;
+                                }
+
+                                if(rs == -1){
+                                        err(12, "Error in reading");
+                                }
+
+                                if(strlen(f2) != 0){
+                                        if(execlp(argv[1], argv[1], f1, f2, (char*)NULL) == -1){
+                                                err(13, "Error in execlp");
+                                        }
+                                } else{
+                                        if(execlp(argv[1], argv[1], f1, (char*)NULL) == -1){
+                                                err(14, "Error in execlp");
+                                        }
+                                }
+                        }
+                }
+        }
+
+        if(rs == -1){
+                err(11, "Error in reading");
+        }
+
+        exit(0);
+}

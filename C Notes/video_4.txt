@@ -1,0 +1,174 @@
+Системни примитиви на С за работа с pipe-ове
+
+fork - the child inherits copies of the parents set of open file descriptors
+
+Примерна задача 1. Да се напише програма на C, която приема аргумент - име на файл. Програмата да:
+записва във файла 'fo'
+създава child процес, който записва 'bar\n'
+parent-а, след като изчака child процеса, записва 'o\n'
+
+int main(int argc, char* argv[]) {
+
+	if (argc != 2) {
+		errx(1, "Invalid number of arguments. Usage: %s <filename>", argv[0]);
+	}
+
+	const int fd = open(argv[1], O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+	if (fd == -1) {
+		err(1, "Could not open output file %s", argv[1]);
+	}
+
+	const char* str1 = "foo\n";
+	const char* str2 = "bar\n";
+
+	if (write(fd, str1, 2) != 2) {
+/*	FIXME
+		const int savederrorcode = errno;
+		close(fd);
+		errno = savederrorcode;
+*/
+		err(1, "Could not write first two chars from parent");
+	}
+
+	const pid_t child_pid = fork();
+	if (child_pid == -1) {
+		err(1, "Could not fork.");
+	}
+
+	if (child_pid == 0) {
+		if (write(fd, str2, 4) != 4) {
+			const int savederrorcode = errno;
+			close(fd);
+			errno = savederrorcode;
+			err(1, "Could not write four chars from child.");
+		}
+		exit(0);
+	}
+
+	int child_status;
+	const pid_t wait_code = wait(&child_status);
+
+	if (wait_code == -1) {
+		err(1, "Could not wait for child.");
+	}
+
+	if (!WIFEXITED(child_status)) {
+		err(1, "Child did not terminate normally.");
+	}
+
+	if (WEXITSTATUS(child_status) != 0) {
+		err(1, "Child exit code not 0, file should be already closed.");
+	}
+
+	if (write(fd, str1+2, 2) != 2) { -> местим поинтъра
+		const int savederrorcode = errno;
+		close(fd);
+		errno = savederrorcode;
+		err(1, "Could not write the last two chars from parent");
+	}
+
+	close(fd);
+	exit(0);
+}
+
+pipe(7)
+pipe(2) -> create pipe (не сочат към истински файлове), файлов дескриптор, независим от 0,1,2 
+int pipe(int pipefd[2]);
+int pipe2(int pipefd[2], int flags);
+Връща 0, -1
+
+Примерна задача 2.  Напишете програма на C, която демонстрира комуникация през pipe между parent и child процеси. Parent-ът трябва да изпраща стринга, получен като първи аргумент на командния ред към child-а, който да го отпечатва на стандартния изход.
+
+int main(const int argc, const char* const argv[]) {
+
+	if (argc != 2) {
+		errx(1, "Invalid number of arguments. Usage: %s <string>", argv[0]);
+	}
+
+	int pf[2]; -> ще подадем на пайп систем кола
+
+	if (pipe(pf) == -1) {
+		err(1, "Could not create pipe");
+	}
+
+	//printf("%d %d\n", pf[0], pf[1]);
+
+	const pid_t child_pid = fork(); -> детето винаги получава копие на файловите дескриптори
+	if (child_pid == -1) {
+		err(1, "Could not fork.");
+	}
+
+	if (child_pid == 0) {
+		close(pf[1]); -> затваря за писане
+		char buf;
+
+		while (read(pf[0], &buf, 1) > 0) {
+			write(1, &buf, 1);
+		}
+
+		close(pf[0]);
+		exit(0);
+	}
+
+	close(pf[0]);
+	write(pf[1], argv[1], strlen(argv[1])); -> strlen приема null terminated string и връща брой чарове без \0
+	close(pf[1]); -> ако го сложим след wait ще имаме deadlock
+	wait(NULL); -> просто чака детето да умре
+
+	exit(0);
+}
+
+Относно deadlock:
+PIPE:
+	p_read
+	p_write
+Child:
+	read(p_read) -> за да четем трябва р_write да е затворен, т.е да няма нито една жива референция, ако има ще зависнем.
+
+
+mkfifo(3) - make a FIFO special file (a named pipe) - пайп с име във файловата система и от правата зависи какво ще правим; не пишем нищо по диска
+int mkfifo(const char* pathname, mode_t mode); -> файла, който да създаде и с какви права
+РАБОТИ ЗА ПРОЦЕСИ, КОИТО НЕ СА РОДНИНИ!
+Представяме си два процеса, единият отваря файл за писане, другия за четене и може да си комуникират.
+
+dup, dup2, dup3 - duplicate a file descriptor
+int dup(int oldfd); -> в най-малкото свободно число го дублицира
+int dup2(int oldfd,int newfd); -> подаваме му номер, ако номерът съществува - файловият дескриптор се затваря.
+int dup3(int oldfd,int newfd, int flags);
+
+Примерна задача 3. Напишете програма на C, която демонстрира употребата на dup/dup2 между parent и child процеси. Parent-ът трябва да изпраща стринга, получен като първи аргумент на командния ред към child-а, където той да може да се чете от stdin. Child процесът да изпълняваwc -c.
+
+int main(const int argc, const char* const argv[]) {
+
+	if (argc != 2) {
+		errx(1, "Invalid number of arguments. Usage: %s <string>", argv[0]);
+	}
+
+	int pf[2]; -> дефинираме масива, който ще използваме
+
+	if (pipe(pf) == -1) { -> създаваме пайпа
+		err(1, "Could not create pipe");
+	}
+
+	const pid_t child_pid = fork(); -> създаваме child процес
+	if (child_pid == -1) {
+		err(1, "Could not fork.");
+	}
+
+	if (child_pid == 0) {
+		close(pf[1]); -> затваряме писане от пайпа
+		close(0); -> затваряме стдин-а
+		dup(pf[0]); -> дубликираме четене от пайпа в стдин-а, защото 0 е най-ниския номер, а сме го затворили отгоре и сме го освободили по този начин (в такива ситуации dup2)
+//		sleep(5);
+		if (execlp("wc", "wc", "-c", NULL) == -1) { -> wc чете от стдин-а 
+			err(1, "Could not exec.");
+		}
+	}
+
+	close(pf[0]);
+	write(pf[1], argv[1], strlen(argv[1]));
+	close(pf[1]);
+	wait(NULL); -> чака детето да умре
+
+	exit(0);
+}

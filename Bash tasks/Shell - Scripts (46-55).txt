@@ -1,0 +1,358 @@
+46. 2022-CE-01
+if [[ $# -ne 3 ]]; then
+        echo "Expecting 3 arguments"
+        exit 1
+fi
+
+number=$1
+prefix_symbol=$2
+unit_symbol=$3
+
+if [[ -z $prefix_symbol ]] || [[ -z $unit_symbol ]]; then
+        echo "expecting string"
+        exit 2
+fi
+
+if ! [[ $number =~ ^[0-9]+\.?[0-9]+$ ]]; then
+        echo "Expecting number"
+        exit 3
+fi
+
+paste -d ',' prefix.csv base.csv | awk -F ',' -v number="$number" -v prefix_number="$prefix_symbol" -v unit_number="$unit_symbol" '
+        $2 == prefix_number{
+                cmd = "echo " number "*" $3 "| bc";
+                cmd | getline n;
+                close(cmd);
+        }
+        $5 == unit_number{
+                c="(" $6 ", " $4 ")"
+        }
+        END {print n,unit_number,c}'| xargs
+
+47. 2022-CE-02
+if [[ $(id -u) -ne 0 ]]; then
+        echo "need to be root"
+        exit 1
+fi
+
+WAKE=/proc/acpi/wakeup
+
+if [[ ${#} -ne 1 ]]; then
+        echo "expecting one argument"
+        exit 2
+fi
+
+if [[ ! -f ${1} ]]; then
+        echo "expecting  file"
+        exit 3
+fi
+
+
+if [[ ! -r "${WAKE}" ]]; then
+        echo "Cannot read ${1}"
+        exit 4
+fi
+
+if [[ ! -w "${WAKE}" ]]; then
+        echo "Cannot write ${1}"
+        exit 5
+fi
+
+if [[ ! -r "${1}" ]]; then
+        echo "Cannot read ${1}"
+        exit 6
+fi
+
+while read DEVICE STATE; do
+        #echo "$DEVICE $STATE"
+        if ! grep -q $DEVICE $WAKE ; then
+                echo "WARN $DEVICE is not found" >&2
+                continue
+        fi
+
+        CHECK_STATE=$( cat $WAKE| awk -v D="${DEVICE}" \
+                '$1 == $D {print $3}'| tr -d '*')
+
+        if [[ ${STATE} != ${CHECK_STATE} ]]; then
+                echo " ${DEVICE} need  change to ${STATE} "
+                echo ${DEVICE} > ${WAKE}
+        fi
+
+done < <( egrep -o "^[A-Z0-9]{0,4}\s+(disabled|enabled)" ${1})
+
+48. 2022-IN-01
+-
+49. 2022-IN-02
+-
+50. 2022-IN-03
+-
+51. 2022-IN-04
+-
+52. 2022-SE-01
+същата като 47
+
+53. 2022-SE-02
+-
+
+54. 2023-IN-01
+[ $(id -u) -eq 0 ] || exit 1
+
+if [ -z "${CTRLSLOTS}" ]; then
+    CTRLSLOTS=0
+fi
+
+if [[ $# -gt 1 ]]; then
+        echo "I expect 0 or 1 parameter"
+        exit 1
+fi
+
+function1() {
+        echo "graph_title SSA drive temperatures"
+        echo "graph_vlabel Celsius"
+        echo "graph_category sensors"
+        echo "graph_info This graph shows SSA drive temp"
+        cat ssa-input.txt | awk '$1 == "Smart" {controller=$3}
+                        $5 == "Slot" {slot=$6}\
+                        $1 == "Array" {array=$2}\
+                        $1 == "Unassigned" {array="UN"}
+                        $1 == "physicaldrive" {
+                                pd=$2;
+                                print "SSA" slot controller array pd ".label", "SSA" slot,controller,array,pd "\n" "SSA" slot controller array pd ".type","GAUGE"
+                        }
+                '| sed 's/://;s/://'
+}
+
+function2() {
+            cat ssa-input.txt | awk '$1 == "Smart" {controller=$3}
+              $5 == "Slot" {slot=$6}\
+              $1 == "Array" {array=$2}\
+              $1 == "Unassigned" {array="UN"}
+              $1 == "physicaldrive" {pd=$2}
+              $1 == "Current" {
+                temperature=$4
+                print "SSA" slot controller array pd ".value",temperature
+             }
+          '| sed 's/://;s/://'
+}
+
+
+if [[ $1 == "autoconf" ]]; then
+        echo "yes"
+elif [[ $1 == "config" ]]; then
+        for s in ${CTRLSLOTS}; do
+       ${SSACLI} ctrl slot=${s} pd all show detail
+    done | function1
+elif [[ $# -eq 0 ]]; then
+        for s in ${CTRLSLOTS}; do
+                ${SSACLI} ctrl slot=${s} pd all show detail
+        done | function2
+else
+        echo "invalid"
+        exit 2
+fi
+
+55. 2023-IN-02
+if [ $# -ne 1 ]; then
+        echo "Usage: $0 <dirname>"
+        exit 1
+fi
+
+if [[ ! -d $1 ]]; then
+        echo "expecting dir"
+        exit 2
+fi
+
+#find $1 -type f -printf "%p %n %i\n"
+
+DIR=$1
+
+T1=$(mktemp)
+T2=$(mktemp)
+T3=$(mktemp)
+
+find ${DIR} -type f -printf "%p %n %i\n" > ${T1}
+# name, link_count, inode
+
+awk '{print $1}' ${T1} | xargs md5sum > ${T2}
+
+join -1 1 -2 2 ${T1} ${T2} > ${T3}
+# name, link_count, inode, md5
+
+rm -- ${T1}
+rm -- ${T2}
+
+MS=$(awk '{print $4}' ${T3} | sort | uniq -c | awk '$1 > 1 { print $2 }')
+
+for M in ${MS}; do
+        T4=$(mktemp)
+        awk -v m=${M} '$4 == m' ${T3} > ${T4}
+
+        LINES=$(wc -l ${T4} | awk '{print $1}')
+        ONES=$(awk '$2 == 1' ${T4} | wc -l)
+
+        if [ $ONES -eq $LINES ]; then
+                tail -n +2 ${T4}
+        else
+                sort -k 3,4 ${T4} | uniq -f 2
+        fi
+
+        rm -- ${T4}
+done | awk '{ print $1 }'
+
+rm -- ${T3}
+
+Втори вариант:
+
+if [ "$#" -ne 1 ]; then
+        echo "Incorrect number of aruments" >&2
+        exit 1
+fi
+
+if [ ! -d $1 ]; then
+        echo "Need a directory" >&2
+        exit 2
+fi
+
+TEMP=$(mktemp -d)
+
+while read inode hardlinks filename; do
+        hash=$(sha256sum "$filename" | cut -d ' ' -f1)
+        echo "$inode $hardlinks" >> "$TEMP/$hash"
+done < <(find "$1" -type f -printf "%i %n %p\n")
+
+while read filename; do
+        uniq_data=$(sort "$filename" | uniq)
+        hardlinks=$(echo "$uniq_data" | cut -d ' ' -f2)
+
+        if [[ -z "$(echo "$uniq_data" | egrep -v ' 1$')" ]]; then
+                while read inode; do
+                        echo "$(find "$1" -type f -inum "$inode")"
+                done < <(echo "$uniq_data" | tail -n +2 | cut -d ' ' -f1)
+        elif ! (echo "$hardlinks" | egrep -q ' 1$'); then
+                while read inode; do
+                        echo "$(find "$1" -type f -inum "$inode" | tail -n 1)"
+                done < <(echo "$uniq_data" | cut -d ' ' -f1)
+        else
+                while read inode; do
+                        echo "$(find "$1" -type f -inum "$inode")"
+                done < <(echo "$uniq_data" | cut -d ' ' -f1)
+
+                while read inode; do
+                        echo "$(find "$1" -type f -inum "$inode" | tail -n 1)"
+                done < <(echo "$uniq_data" | cut -d ' ' -f1)
+        fi
+done < <(find "$TEMP" -type f)
+
+rm -r "$TEMP"
+
+56. 2023-SE-01
+if [[ $# -ne 2 ]]; then
+        echo "Error"
+        exit 1
+fi
+
+if [[ ! -d $1 ]]; then
+        echo "Error"
+        exit 2
+fi
+
+if [[ ! -f $2 ]]; then
+        echo "Error"
+        exit 3
+fi
+
+while read word; do
+        while read line; do
+                if (grep -wq "$word" "$line"); then
+                        sed -E -i "s/$word/$(echo "$word" | sed 's/./\*/g')/g" "$line"
+                fi
+        done< <(find $1 -type f -name "*.txt")
+done< <(cat $2)
+
+57. 2023-SE-04
+[[ "${#}" -eq 1 ]] || { echo "Wrong number of arguments" >&2; exit 1; }
+[[ -d "${1}" ]] || { echo "${1} not a directory"  >&2; exit 2; }
+
+TMP_HASHES=$(mktemp -d)
+
+while read -rd $'\0' FILE; do
+    HASH=$(sha1sum "${file}" | cut -d' ' -f1)
+    echo -n "${file}" >> "${TMP_HASHES}/${HASH}"
+    echo -ne '\0' >> "${TMP_HASHES}/${HASH}"
+done < <(find "${1}" -type f -print0)
+
+TOTAL_GROUPS=0
+TOTAL_BYTES=0
+
+while read GROUP; do
+    MAIN=$(head -zn 1 "${GROUP}")
+    read M_INODE SIZE < <(stat -c "%i %s" "${MAIN}")
+
+    GROUP_CHANGED=0
+
+    while read -rd $'\0' OTHER; do
+        read O_INODE O_COUNT < <(stat -c '%i %h' "${OTHER}")
+
+        if [[ "${O_INODE}" -ne "${M_INODE}" ]]; then
+            GROUP_CHANGED=1
+            rm "${OTHER}"
+            ln "${MAIN}" "${OTHER}"
+            if [[ "${O_COUNT}" -eq 1 ]]; then
+                TOTAL_BYTES=$((TOTAL_BYTES + SIZE))
+            fi
+        fi
+    done < <(tail -zn +2 "${GROUP}")
+    TOTAL_GROUPS=$((TOTAL_GROUPS + GROUP_CHANGED))
+done < <(find "${TMP_HASHES}" -type f)
+
+echo "Deduplicated groups: ${TOTAL_GROUPS}"
+echo "Bytes freed: ${TOTAL_BYTES}"
+
+rm -r "${TMP_HASHES}"
+
+Втори вариант:
+if [[ $# -ne 1 ]]; then
+        echo "Incorrect number of arguments" >&2
+        exit 1
+fi
+
+if [[ ! -d $1 ]]; then
+        echo "First argument expected to be directory" >&2
+        exit 2
+fi
+
+TMP=$(mktemp -d)
+
+while read inode size filename; do
+        HASH="$(sha1sum "${filename}" | cut -d ' ' -f1)"
+        echo "$inode $size $filename" >> "$TMP/$HASH" #imeto na vseki fail e hash-a, a v nego sa vsichki kopiya
+done < <(find "$1" -type f -printf "%i %s %f\n")
+
+count_groups=0
+count_bytes=0
+
+while read group; do
+        flag=0 #ako dadena grupa ima pone edna smyana go vdigame
+        main_inode="$(head -n 1 "$group" | cut -d ' ' -f1)"
+
+        while read others; do   #chetem ostanalite failove osven purviya, koito polzwame za osnoven
+                other_inode="$(echo "$other" | cut -d ' ' -f1)"
+
+                if [[ "$main_inode" -ne "$other_inode" ]]; then #sravnyavame dali ne e hardlink - i go pravim
+                        flag=1
+                        rm "$(echo "$other" | cut -d ' ' -f3)"
+                        #ln "$(head -n 1 "$group" | cut -d ' ' -f3)" "$(echo "$other" | cut -d ' ' -f3)"
+                        echo "$(head -n 1 "$group" | cut -d ' ' -f3) $(echo "$other" | cut -d ' ' -f3)"
+                        file_bytes=$(echo "$group" | cut -d ' ' -f2)
+                        count_bytes=$((count_bytes + bytes))
+                fi
+
+        done < <(tail -n +2 "$group")
+
+        count_groups=$(( count_groups + flag))
+done < <(find "$TMP" -type f)
+
+echo "Deduplicated groups: $count_groups"
+echo "Bytes freed: $count_bytes"
+
+rm -r "$TMP"

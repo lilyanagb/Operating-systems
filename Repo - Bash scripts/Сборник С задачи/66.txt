@@ -1,0 +1,106 @@
+#include <stdio.h>
+#include <string.h>
+#include <err.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <stdbool.h>
+
+int main(int argc, char* argv[]){
+        // 0 [OPTION -d || -s (SET2 not needed)] SET1 [SET2 - same length like SET1] -> 1
+
+        if(argc < 2 || argc > 4){
+                errx(1, "Incorrect number of arguments");
+        }
+
+        int rs;
+        char c;
+
+        if(strcmp(argv[1], "-d") == 0 && argc == 3){
+                char* to_delete = malloc(strlen(argv[2])+1);
+                strcpy(to_delete, argv[2]);
+
+                while( (rs = read(0, &c, sizeof(c))) == sizeof(c)) {
+                        for(int i=0; i<strlen(to_delete); i++){
+                                if(c != to_delete[i]){
+                                        if(write(1, &c, sizeof(c)) != sizeof(c)){
+                                                err(2, "Error in writing -d");
+                                        }
+                                }
+                                break;
+                        }
+                }
+
+                free(to_delete);
+                if(rs == -1){
+                        err(3, "Error in reading -d");
+                }
+        }
+        else if(strcmp(argv[1], "-s") == 0 && argc == 3){
+                char* to_delete = malloc(strlen(argv[2])+1);
+                strcpy(to_delete, argv[2]);
+                int counter = 0;
+
+                while( (rs = read(0, &c, sizeof(c))) == sizeof(c) ){
+                        if(c == to_delete[0]){
+                                counter++;
+                        }
+
+                        if(c != to_delete[0] || counter <= 1){
+                                if(write(1, &c, sizeof(c)) == -1){
+                                        err(4, "Error in writing -s");
+                                }
+                        }else{
+                                continue;
+                        }
+                }
+
+                free(to_delete);
+                if(rs == -1){
+                        err(5,"Error in reading");
+                }
+        }
+        else if(argc == 3){
+                if(strlen(argv[1]) != strlen(argv[2])){
+                        err(6, "Incorrect length");
+                }
+                char* from = malloc(strlen(argv[1])+1);
+                strcpy(from, argv[1]);
+                char* to = malloc(strlen(argv[2])+1);
+                strcpy(to, argv[2]);
+                int index = 0;
+                bool found = false;
+
+                while( (rs = read(0, &c, sizeof(c))) == sizeof(c) ){
+                        for(int i=0; i<strlen(from); i++){
+                                if(c == from[i]){
+                                        found = true;
+                                        index = i;
+                                        break;
+                                }
+                        }
+
+                        if(found){
+                                found = false;
+                                if(write(1, &to[index], sizeof(to[index])) == -1){
+                                        err(7, "Error in writing");
+                                }
+                                continue;
+                        }
+
+                        if(write(1,&c, sizeof(c)) == -1){
+                                err(8, "Error in writing");
+                        }
+                }
+
+                free(from);
+                free(to);
+                if(rs == -1){
+                        err(9, "Error in reading");
+                }
+        }
+        else{
+                err(10,"Error");
+        }
+
+        exit(0);
+}

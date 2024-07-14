@@ -1,0 +1,45 @@
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <err.h>
+
+int main(int argc, char* argv[]){
+        if(argc != 4 ){
+                errx(1, "Incorrect number of args");
+        }
+
+        int fd1 = open(argv[1], O_RDONLY);
+        int fd2 = open(argv[2], O_RDONLY);
+        int fd3 = open(argv[3], O_CREAT | O_TRUNC | O_WRONLY, 0644);
+
+        if(fd1 == -1 || fd2 == -1 || fd3 == -1){
+                err(2, "Error in opening files");
+        }
+
+        int rs1,rs2;
+        uint16_t bit; //scl
+        uint16_t bit_position; //sdl
+
+        while( (rs1 = read(fd1, &bit, sizeof(bit))) == sizeof(bit)) {
+                if( (rs2 = read(fd2, &bit_position, sizeof(bit_position))) != sizeof(bit_position)) {
+                        err(5, "Error in reading");
+                }
+
+                if(bit == 1){
+                        if( write(fd3, &bit_position, sizeof(bit_position)) != sizeof(bit_position) ){
+                                err(3, "Error in writing");
+                        }
+                }
+        }
+
+        if(rs1 == -1){
+                err(4, "Error in reading");
+        }
+
+        close(fd1);
+        close(fd2);
+        close(fd3);
+        exit(0);
+}

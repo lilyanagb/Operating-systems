@@ -1,0 +1,160 @@
+90. 2016-SE-01
+Semaphore s1,s2
+s1.init(0)
+s2.init(0)
+
+process P 	process Q
+p_1 		q_1
+s1.signal()	s1.wait()
+p_2 		q_2
+s2.wait()	s2.signal()
+p_3 		q_3
+---------------------------------
+91. 2017-SE-01
+Semaphore s1
+s1.init(0)
+
+process P 	process Q 	process R
+p_1		q_1 		r_1
+s1.signal()     s1.wait() 	s1.wait()
+		s1.signal()	s1.signal()
+p_2 		q_2 		r_2		 	
+p_3 		q_3 		r_3
+---------------------------------
+92. 2017-SE-04
+Semaphore s1,s2
+s1.init(0)
+s2.init(0)
+
+process P 	process Q
+p_1 		q_1
+s1.signal() 	s1.wait()
+s2.wait()	s2.signal()
+p_2 		q_2
+---------------------------------
+93. 2017-SE-05
+Semaphore s1,s2
+s1.init(0)
+s2.init(1)
+
+process P 	process Q
+s2.wait()	s1.wait()
+p_1 		q_1
+s1.signal()	s1.wait()
+s2.wait()	s2.signal()
+p_2 		q_2
+s1.signal()	s1.wait()
+s2.wait()	s2.signal()
+p_3 		q_3
+s1.signal()	s2.signal()
+---------------------------------
+94. 2018-CS-01
+Semaphore s1,s2
+s1.init(0)
+s2.init(0)
+
+process P 	process Q 	process R
+p_1 		q_1 		r_1
+s1.signal()	s1.wait()	s1.wait()
+		s1.signal()	s1.signal()
+p_2 		q_2 		r_2
+s2.wait()			s2.signal()
+p_3 		q_3 		r_3
+---------------------------------
+95. 2018-CS-02
+Semaphore s1,s2,s3
+s1.init(0)
+s2.init(0)
+s3.init(0)
+
+process P 	process Q 	process R
+p_1		q_1 		r_1
+s1.signal()     s1.wait()	s2.wait()
+s3.wait()	s2.signal()	s3.signal()
+p_2 		q_2 		r_2
+s2.signal()	s1.signal()	s1.wait()
+				s2.wait()
+p_3 		q_3 		r_3
+---------------------------------
+96.  2018-SE-01
+Semaphore s1,s2
+s1.init(0)
+s2.init(0)
+
+process P 	process Q 	process R
+p_1 		q_1 		r_1
+s1.wait()	s1.wait()	s2.wait()
+p_2 		q_2 		r_2
+s2.signal()	s2.signal()	s1.signal()
+p_3 		q_3 		r_3
+---------------------------------
+97. 2019-CS-01 
+Semaphore s1,s2,s3
+s1.init(0)
+s2.init(0)
+s3.init(0)
+
+process P 	process Q 	process R
+p_1 		q_1 		r_1
+s1.signal()	s1.wait()	s1.wait()
+		s1.signal()	s1.signal()
+p_2 		q_2 		r_2
+s2.wait()	s2.signal()	s3.signal()
+s3.wait()
+p_3 		q_3 		r_3
+---------------------------------
+98. 2019-CS-02 
+Semaphore s1,s2,s3
+s1.init(0)
+s2.init(0)
+s3.init(1)
+
+process P 	process Q 	process R
+s3.wait()	s1.wait()	s2.wait()
+p_1 		q_1 		r_1
+s1.signal()	s2.signal()	s3.signal()
+s3.wait()	s1.wait()	s2.wait()
+p_2 		q_2 		r_2
+s1.signal()	s2.signal()	s3.signal()
+---------------------------------
+99. 2019-SE-01 RENDEZVOUS
+Semaphore s1,s2
+s1.init(0)
+s2.init(0)
+
+process P 	process Q
+p_1 		q_1
+s1.signal()	s2.signal()
+s2.wait()	s1.wait()
+p_2 		q_2
+s1.signal()	s2.signal()
+s2.wait()	s1.wait()
+p_3 		q_3
+---------------------------------
+100*. 2020-CS-01
+Semaphore s1,s2,s3
+s1.init(0)
+s2.init(0)
+s3.init(0)
+
+process P 	process Q 	process R
+p_1 		q_1 		r_1
+s1.signal()	s2.signal()	s3.signal()
+s2.wait()	s1.wait()	s1.wait()
+s2.signal()	s1.signal()	s1.signal()
+s3.wait()	s3.wait()	s2.wait()
+s3.signal()	s3.signal()	s2.signal()
+p_2 		q_2 		r_2
+
+-да не заключвам процесите да не могат да се изпълняват самостоятелно
+---------------------------------
+101. 2020-SE-03
+Semaphore s1
+s1.init(0)
+
+process P 	process Q 	process R
+p_1		q_1 		r_1
+s1.signal()	s1.wait()	s1.wait()
+p_2 		q_2 		r_2
+p_3 		q_3 		r_3
+		s1.signal()	s1.signal()

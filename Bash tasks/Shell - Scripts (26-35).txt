@@ -1,0 +1,174 @@
+26. 2017-SE-03
+if [ "$(whoami)" != "s62599" ];then
+    echo "You have no permission to complete this action!"
+    exit 1
+fi
+
+while read line; do
+    user=$(echo "$line" | awk '{print $2}')
+    info=$(ps --user "s62599" -o rss=, pid= | awk 'BEGIN{total=0; max=0; pid=0}{total+=$1; if(max < $1) max=$1; pid=$2}END{print total, NR, max, pid}')
+    echo "user: $user processes: $(echo "$line" | awk '{print $1}') total rss: $(echo "$info" | cut -d ' ' -f1)"
+    
+    if [ $(echo "$info" | cut -d ' ' -f3) -gt $(( total * 2 / $(echo "$info" | cut -d ' ' -f2))) ]; then
+	kill -s KILL $(echo "$info" | cut -d ' ' -f4)
+    fi
+done < <(ps -e -o user= | sort | uniq -c)
+
+27. 2017-SE-04
+if [ ! -d  $1 ];then
+      echo "Wrong arguments passed!"
+      exit 1
+fi
+
+broken=$(find -L $1 -type l)
+links=$(find $1 -type l 2>/dev/null | grep -v "$(find -L $1 -type l 2>/dev/null)")
+
+if [ $# -eq 1 ]; then
+	echo "$links"
+	echo "Broken symlinks: $(echo "$broken" | wc -l)"
+elif elif [ $# -eq 2 ]; then
+	echo "$links" >> ./"$2"
+	echo "Broken symlinks: $(echo "$broken" | wc -l)" >> ./"$2"
+else
+      echo "Wrong arguments passed!"
+      exit 2
+fi
+
+28. 2017-SE-05
+if [ $# -ne 2 ] || [ ! -d $1 ];then
+    echo "Wrong arguments passed!"
+    exit 1
+fi
+find $1 -maxdepth 1 -type f | grep "$2" | sort -nr -t '.' -k123 | head -1
+
+29. 2017-SE-06
+if [ "$(whoami)" != "root" ];then
+    echo "You have no permission to complete this action!"
+    exit 1
+fi
+
+while read user home; do
+    if [ ! -d $home ] || [ $(stat $home -c "%U") != $user ] || [ ! -w $home ]; then
+        root_rss=$(ps --user "root" -o rss= | awk 'BEGIN{total=0}{total+=$1}END{print total}')
+        user_rss=$(ps --user "$user" -o rss= | awk 'BEGIN{total=0}{total+=$1}END{print total}')
+
+        if [ $user_rss -gt $root_rss ];then
+            #ps --user "$user" -o pid= | xargs -I {} kill -s KILL {}
+        fi
+    fi
+done < <(cat /etc/passwd | grep -v "root" | cut -d ':' -f1,6 | tr ':' ' ')
+
+30. 2018-SE-01
+if [ $# -ne 1 ] || [ ! -d $1 ];then
+    echo "Wrong argument passed!"
+    exit 1
+fi
+
+while read friend
+do
+    lines=$(find $1 -type f | grep "$friend" | xargs -I {} cat {} | wc -l)
+    echo "$friend $lines"
+done < <(find $1 -maxdepth 3 -mindepth 3 | sed "s/[[:print:]]\+\/\([[:print:]]\+\)/\1/g" | sort | uniq) | sort -nr -t ' ' -k2 | head -10
+
+31. 2018-SE-02
+if [ $# -ne 2 ] || [ ! -f $1 ] || [ ! -d $2 ];then
+    echo "Wrong arguments passed!"
+    exit 1
+fi
+touch ./$2/dict.txt
+
+cat $1 | sed -E 's/^([^:(]+).*/\1/g' |  sed 's/^[[:blank:]]*//' | tr -s '[:blank:]' ' ' | sort | uniq | awk 'BEGIN{key=0}{print $0";"key ; key++}' >> ./$2/dict.txt
+
+while read line
+do
+    filename=$(echo $line | cut -d ';' -f2)
+    touch ./$2/$filename.txt
+    cat $1 | grep "$(echo $line | cut -d ';' -f1)" >> ./$2/$filename.txt
+done < <(cat ./$2/dict.txt)
+
+32. 2018-SE-03
+if [ $# -ne 2 ] || [ ! -f $1 ] || [ ! -f $2 ];then
+    echo "Wrong arguments passed!"
+    exit 1
+fi
+
+while read line; do
+    if ( cat $2 | grep -q "^[[:digit:]]\+,$(echo $line | cut -d ',' -f2-)$" );then
+        continue
+    fi
+
+    if [ $(cat $1 | grep "^[[:digit:]]\+,$(echo $line | cut -d ',' -f2-)$" | wc -l) -gt 1 ];then
+        cat $1 | grep "^[[:digit:]]\+,$(echo $line | cut -d ',' -f2-)$" | sort -n -t ',' -k1 | head -1 >> $2
+    else
+        echo $line >> $2
+    fi
+done < <( cat $1 )
+
+33. 2019-SE-01 
+input=$(while read line
+do
+    if ( echo "$line" | grep -q "^[-]\{0,1\}[[:digit:]]\+$" );then
+        echo "$line"
+    fi
+done) -> така четем от стдин
+
+max_abs=$(echo "$input" | awk '{print $1, $1*-1}' | sort -n | uniq | tail -n 1)
+echo "$input" | grep -E "($max_abs|-$max_abs)" | sort -n | uniq
+
+max_sum=-1
+number=0
+
+while read line; do
+    sum=$(echo "$line" | sed "s/-//g" | grep -o "." | awk 'BEGIN{total=0}{total+=$1}END{print total}')
+    if [ $sum -gt $max_sum ];then
+        max_sum=$sum
+        number=$line
+    fi
+done < <(echo "$input" | sort -n)
+
+echo "Output: $number"
+
+34. 2019-SE-02 
+if [ "$1" == "-n" ];then
+    for file in "${@:3}"
+    do
+        cat "$file.log" | head -n $2 | sed "s/\([[:digit:]]\+-[[:digit:]]\+-[[:digit:]]\+ [[:digit:]]\+:[[:digit:]]\+:[[:digit:]]\+\) \([[:print:]]\+\)/\1 $file \2/g"
+    done | sort -n -t ' ' -k1,2
+else
+    for file in $@
+    do
+        cat $file.log | head -10 | sed "s/\([[:digit:]]\+-[[:digit:]]\+-[[:digit:]]\+ [[:digit:]]\+:[[:digit:]]\+:[[:digit:]]\+\) \([[:print:]]\+\)/\1 $file \2/g
+    done | sort -n -t ' ' -k1,2
+fi
+
+35. 2019-SE-03
+if [ $# -ne 1 ]; then
+    echo "There must be exactly one parameter." >&2
+    exit 1
+fi
+
+if [ ! -d "$1" ]; then
+    echo "Please, provide an existing folder." >&2
+    exit 2
+fi
+
+time=$(stat -c "%X" "$0") -> $0 текущия скрипт
+
+while read file; do
+//времето на последна промяна на скрипта е по-голямо от времето на последна промяна на текущо разглеждания файл
+	if (( $(echo "$time > $(stat -c "%Y" "$file")" | bc -l) )); then 
+		continue
+	fi
+	
+	meow="$(tar -tf "$file" | egrep "[/]?meow\.txt$")"
+	[ -n "$meow" ] || continue;
+	
+	tar -xf "$file" "$meow"
+	name="$(echo "$file" | cut -d "_" -f 1)"
+	timest="$(echo "$file" | cut -d "_" -f 2 | cut -b 8- | sed -r 's/\.tgz$//')"
+	mv "$meow" "/extracted/${name}_${timest}.txt"
+
+done< < (find "$2" -mindepth 1 -maxdepth 1 | egrep '^[^_]+_report-[1-9][0-9]*\.tgz')
+
+#using it so it would change when executed
+touch "$0" -> актуализиране на времето на последно промяна на текущия скрипт

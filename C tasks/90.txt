@@ -1,0 +1,85 @@
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <err.h>
+#include <string.h>
+#include <sys/wait.h>
+
+//a.init(1), b.init(0)
+//
+//parent    child
+//ding          b.wait
+//b.signal      dong
+//a.wait        a.signal
+//sleep
+
+void s(const int fd){
+        if(write(fd, "o", 1) == -1){
+                err(4, "Error in signal");
+        }
+}
+
+void w(const int fd){
+        char c;
+        if(read(fd, &c, 1) == -1){ //dava vuzmojnost da wait-nem dokato nyama neshto napisano
+                err(5, "Error in wait");
+        }
+}
+
+int main(int argc, char* argv[]){
+        if (argc != 3){
+                errx(1, "Incorrect number of arguments");
+        }
+
+        int N = atoi(argv[1]);
+        int D = atoi(argv[2]);
+
+        // pf1 - child, pf2 - parent
+        int pf1[2];
+        int pf2[2];
+        if(pipe(pf1) == -1){
+                err(2, "Error in pipe pf1");
+        }
+
+        if (pipe(pf2) == -1){
+                err(3, "Error in pipe pf2");
+        }
+
+        int pid = fork();
+        if( pid == -1 ){
+                err(6, "Error in fork");
+        }
+
+        if( pid == 0 ){
+                close(pf1[0]); //zatvaryame deteto za chetene
+                close(pf2[1]); //zatvaryame bashtata za pisane
+
+                for(int i=0; i<N; i++){
+                        w(pf2[0]); //chaka bashtata da zapishe che e gotov
+                        if(write(1,"DONG\n",5) == -1){
+                                err(7, "Error in DONG");
+                        }
+                        s(pf1[1]); //deteto pishe che e gotovo
+                }
+                exit(0); // izlizame ot deteto
+        }
+
+        close(pf1[1]); //zatvaryame deteto za pisane
+        close(pf2[0]); //zatvaryame bashtata za chetene
+
+        for(int j=0; j<N; j++){
+                if(write(1, "DING\n", 5) == -1){
+                        err(8, "Error in DING");
+                }
+
+                s(pf2[1]);
+                w(pf1[0]);
+
+                if(sleep(D) != 0){
+                        err(9, "Error in sleep");
+                }
+        }
+        exit(0);
+}

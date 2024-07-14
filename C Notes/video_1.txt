@@ -1,0 +1,153 @@
+scp <source> <dest> - linux, sftp, WinSCP2 - позволяват ни да мятаме файлове от една машина на друга
+scp username@astero.openfmi.net:/home/teachers/krasi/c/filename ./
+
+Compile
+gcc hello_world.c | gcc -o krasi hello_world.c
+echo $? 
+./a.out | ./krasi.out
+
+Warning & Error
+-Werror - make all warnings into errors.
+-Wall - enable all the warnings
+-Wpedantic / -pedantic - issue all the warnings demanded by strict ISO C and ISO C++; reject all programs that use forbidden extensions
+-Wextra - some extra warning flags that are not enable by -Wall
+
+Всички тези добавят нови warnings, които по принцип не се включват.
+Нашият код трябва да се компилира успешно при:
+gcc -std=c99 -Werror -Wall -Wpedantic -Wextra -o foo hello_world.c
+Ако сме копирали Makefile в директория + main.c 
+-> казваме make -> ./main (Това ни позволява да не пишем всеки път дългата команда)
+
+файл = съвкупност от байтове
+-> xxd hello_world.c - показва байтовете и символите
+-> memory representation:
+unsigned short int = 2B
+[ 0 , 2^16 -1 ] 
+2^15 * <bit value> + 2^14 * <bit value> + ... + 2^0 <bit value>
+bit value = 0/1
+
+162 = 128 + 32 + 2 
+Byte 1:
+|1|0|1|0|0|0|1|0|
+ 7 6 5 4 3 2 1 0
+Byte 2:
+|0|0|0|0|0|0|0|0|
+
+ALWAYS most significant to least significant
+-> endianess
+Byte A - 7-0
+Byte B - 15-8
+
+Big Endianess: BA    - байта с най-голям адрес е първи, най-висока степен на двойката
+Little Endianess: AB - обратното (astero го използва)
+
+Всички файлове са съвкупност от байтове, зависи от нас как ще ги интерпретираме.
+
+C_style_string -> char * (null terminated pointer) ===> |_| (запазен първия символ от стринга, който интерпретираме)
+					    					   |_|
+					    					   |_|
+					    					   |0x00| 
+Интересува ни първи и последен байт.
+1 подход -> само първи байт пазим и знаем,че има 0x00
+2 подход -> пазим 2 неща - начало и дължина
+
+
+Памет - статична и динамична (програмата ни ще знае по време на компилация/ по време на компилация не знаем)
+malloc(3) void *malloc(size_t size) - връща NULL, ако не успее
+free(3) void free(void *ptr)
+
+man 2 - system call (OS specific) - open,close,read,write
+man 3 - library function (независимо каква е OS)
+
+exit(3) от 0-255
+
+fprintf(3) int fprintf(FILE *stream, const char *format,..)
+err(3):
+void еrr(inr eval, const char *format, ...) -> errno - променлива, за която ОС се грижи
+void errx(inr eval, const char *format, ...)  -> не слага стойността на errno (когато не екзитваме заради грешка при систем кол)
+void warn(const char *format, ...) -> същото като err, но без приключване на програмата
+ПРИНТИРАТ НА STDERR!
+
+lseek(3) off_t lseek(int fd, off_t offset, int whence)
+whence:
+SEEK_SET - на позицията, която сме подали
+SEEK_CUR - offset числа нагоре
+SEEK_END - края на файла + offset (удобно за 0,SEEK_END, за да разберем колко е голям файла)
+
+open(2) int open(const char *pathname, int flags, mode_t mode) - връща fd or -1
+fd структура, оценява се per process ( в два различни процеса да е за 2 различни файла)
+flags: O_RDONLY, O_WRONLY, O_RDWR, O_APPEND, O_TRUNC
+mode - permissions for O_CREAT flag (mode & ~mask):
+S_IRWXU read,write,execute (user)
+S_IRUSR read
+S_IWUSR write
+S_IXUSR execute
+S_IRWXG read,write,execute (group)
+S_IRGRP read
+...
+S_IRWXO read,write,execute (other)
+S_IROTH read
+...
+
+close(2) int close(int fd) - връща -1, ако не успее, ако успее - 0
+
+read(2) ssize_t read(int fd, void *buf, size_t count) - в buf записваме байтовете, които сме прочели /откъде, къде, колко/ - ако файл има 100 байта, а сме прочели 10 - връща 10; ако файл има 8, но искаме 10 - връща 8 (вътрешно инкрементира курсора и си четем нормално последователно)
+
+write(2) ssize_t write(int fd, const void *buf, size_t count) - същото като read /къде,откъде,колко/
+
+Примерна задача.1 Копира от файл 1 във файл 2
+#include <fcntl.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+//0 -> stdin
+//1 -> stdout
+//2 -> stderr
+
+//int main(int argc, char* argv[])
+int main(void)
+{
+	int fd1;
+	int fd2;
+	char c;
+
+	if ( (fd1 = open("foo.txt", O_RDONLY) ) == -1) {
+		write(2, "File failed to open in read mode\n", 33);
+		exit(1);
+	}
+
+	if ( ( fd2 = open("bar.txt", O_CREAT|O_WRONLY|O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH) ) == -1 ){
+		write(2, "File failed to open in write mode\n", 34);
+		close(fd1);
+		exit(2);
+	}
+
+	int r_status;
+	int w_status;
+
+	while ( (r_status = read(fd1, &c, 1)) != 0 && r_status != -1 ){
+		if ( (w_status = write(fd2, &c, 1)) == -1 ){
+			break;
+		}
+	}
+
+	close(fd1);
+	close(fd2);
+
+	if (r_status == -1){
+		write(2,"Read error\n",11);
+		exit(3);
+	}
+
+	if (w_status == -1){
+		write(2,"Write error\n",12);
+		exit(4);
+	}
+	exit(0);
+}
+
+argc - counter (arguments + 1, първият аргумент е самото име на програмата)
+argv - C-string 
+int main(int argc, char* argv[])
+{
+}

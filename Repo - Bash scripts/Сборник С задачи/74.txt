@@ -1,0 +1,67 @@
+#include <stdlib.h>
+#include <stdio.h>
+#include <fcntl.h>
+#include <err.h>
+#include <string.h>
+#include <unistd.h>
+#include <stdint.h>
+
+int main(int argc, char* argv[]){
+        if(argc != 3){
+                errx(1, "Incorrect number of arguments");
+        }
+
+        int fd1 = open(argv[1], O_RDONLY);
+        if(fd1 == -1){
+                err(2,"Error in fd1 opening");
+        }
+
+        int fd2 = open(argv[2], O_CREAT | O_TRUNC | O_WRONLY,0644);
+        if(fd2 == -1){
+                close(fd1);
+                err(3,"Error in fd2 opening");
+        }
+
+        int rs;
+    unsigned char c;
+        //unsigned char new;
+        //int bitCounter = 0;
+        uint16_t new2;
+        uint16_t result;
+
+        while( (rs = read(fd1,&c,sizeof(c))) == sizeof(c)){
+                for(int i=0; i<8; i++){ //1001 1101
+                        int bit = (c >> (7 - i)) & 1;
+                        if(bit == 1){
+                                new2 = 0x02;
+                                //new = (new << 2) | 0x2;
+                        }else{
+                                new2 = 0x01;
+                                //new = (new << 2) | 0x1;
+                        }
+
+                        result = (result << 2) | new2;
+                        new2 = 0;
+                }
+                        //bitCounter += 2;
+                        //if(bitCounter == 8){
+                                if(write(fd2,&result,sizeof(result)) == -1){
+                                        close(fd1);
+                                        close(fd2);
+                                        err(5, "Error in writing 1");
+                                }
+                                //bitCounter = 0;
+                        //}
+                //}
+        }
+
+        if(rs == -1){
+                close(fd1);
+                close(fd2);
+                err(6, "Error");
+        }
+
+        close(fd1);
+        close(fd2);
+        exit(0);
+}

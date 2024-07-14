@@ -1,0 +1,115 @@
+#include <stdio.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <errno.h>
+#include <err.h>
+
+int main(int argc, char* argv[]) {
+        int rs;
+        char buff;
+
+        if (argc == 1) {
+                while ((rs = read(0, &buff, sizeof(buff))) != 0) {
+                        if (rs == -1) {
+                                err(1, "Reading failure");
+                        }
+                        //otmenya bufarizaciyata
+                        //setbuf(stdout, NULL);
+                        if (write(1, &buff, sizeof(buff)) != sizeof(buff)) {
+                                err(2, "Writing failure");
+                        }
+                }
+        }
+        else {
+                if (strcmp(argv[1], "-n") == 0) {
+                        int line = 1;
+                        int newline = 1;
+                        for (int i = 2; i < argc; i++) {
+                                if (strcmp(argv[i],"-") == 0) {
+                                        while ((rs = read(0, &buff, sizeof(buff))) != 0) {
+                                                if (rs == -1) {
+                                                        err(3, "Reading failure");
+                                                }
+                                                if (newline)
+                                                        printf("%d " , line);
+
+                                                setbuf(stdout, NULL);
+                                                if (write(1, &buff, sizeof(buff)) != sizeof(buff)) {
+                                                        err(4, "Writing failure");
+                                                }
+                                                if (buff == '\n') {
+                                                        newline = 1;
+                                                        line++;
+                                                }
+                                                else
+                                                        newline = 0;
+                                        }
+                                        continue;
+                                }
+
+                                int fd = open(argv[i], O_RDONLY);
+                                if (fd == -1) {
+                                        err(5, "Open failure");
+                                }
+
+                                while ((rs = read(fd, &buff, sizeof(buff))) != 0) {
+                                        if (rs == -1) {
+                                                close(fd);
+                                                err(6, "Reading failure");
+                                        }
+                                        if (newline)
+                                                printf("%d " , line);
+
+                                        setbuf(stdout, NULL);
+                                        if (write(1, &buff, sizeof(buff)) != sizeof(buff)) {
+                                                close(fd);
+                                                err(7,"Writing failure");
+                                        }
+                                        if (buff == '\n') {
+                                                newline = 1;
+                                                line++;
+                                        }
+                                        else
+                                                newline = 0;
+                                }
+                                close(fd);
+                        }
+                }
+                else {
+                        for (int i = 1; i < argc; i++) {
+                                if (strcmp(argv[i], "-") == 0) {
+                                        while ((rs = read(0, &buff, sizeof(buff))) != 0) {
+                                                if (rs == -1) {
+                                                        err(8, "Reading failure");
+                                                }
+                                                //setbuf(stdout, NULL);
+                                                if (write(1, &buff, sizeof(buff)) != sizeof(buff)) {
+                                                        err(9, "Writing failure");
+                                                }
+                                        }
+                                        continue;
+                                }
+                                int fd = open(argv[i], O_RDONLY);
+                                if (fd == -1)
+                                        err(10, "Open failure");
+
+                                while ((rs = read(fd, &buff, sizeof(buff))) != 0) {
+                                        if (rs == -1) {
+                                                close(fd);
+                                                err(11, "Reading failure");
+                                        }
+                                        setbuf(stdout, NULL);
+                                        if (write(1, &buff, sizeof(buff)) != sizeof(buff)) {
+                                                close(fd);
+                                                err(12, "Writing failure");
+                                        }
+                                }
+                                close(fd);
+                        }
+                }
+        }
+        exit(0);
+}

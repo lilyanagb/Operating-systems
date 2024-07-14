@@ -1,0 +1,154 @@
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <err.h>
+#include <string.h>
+#include <sys/stat.h>
+
+#define uint128_t __uint128_t
+
+struct header{ //4U
+        uint64_t magic;
+        uint32_t cfsb;
+        uint32_t cfsu;
+        uint32_t ofsb;
+        uint32_t ofsu;
+        uint32_t unused1;
+        uint32_t cksum;
+        uint128_t sectionkey;
+        uint32_t s[4];
+} __attribute__((packed));
+
+struct section{ //2U
+        int64_t relative_offset;
+        uint64_t len;
+        uint128_t datakey;
+} __attribute__((packed));
+
+int main(int argc, const char* argv[]){
+        if(argc != 3){
+                errx(1, "Incorrect number of arguments");
+        }
+
+        int fd1 = open(argv[1], O_RDONLY);
+        if(fd1 ==  -1){
+                err(2, "Error in opening argv[1]");
+        }
+
+    //izpolzvame go za da moje posle da mahnem padding-a
+        char file[] = "/tmp/fileXXXXXX";
+        strcat(file, argv[2]);
+        int fd2 = open(file, O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+
+        if(fd2 == -1){
+                err(20, "Error in creating temp file");
+        }
+
+        int fd3 = open(argv[2], O_CREAT | O_TRUNC | O_WRONLY, S_IRUSR | S_IWUSR);
+
+        if(fd3 == -1){
+                err(3, "Error in creating argv[2]");
+        }
+
+        struct stat st;
+        if(fstat(fd1, &st) == -1){
+                err(4, "Error in working with the file");
+        }
+
+        if(st.st_size / sizeof(uint128_t) != 0){
+                err(5, "Wrong format in argv[1]");
+        }
+
+        int rs;
+        struct header h;
+        struct section s;
+
+        if( (rs = read(fd1, &h, sizeof(h))) != sizeof(h)){
+                err(6, "Error in reading the header");
+        }
+
+        if(h.magic != 0x0000534f44614c47){
+                err(7, "Error in the magic number");
+        }
+
+        // FOr s in header - 4 datas
+        for(int i=0; i<4; i++){
+                //4 slota opisvashti nachalnata poziciya na section
+                //mestim na konkretniya section
+                off_t offset = lseek(fd1, h.s[i]*sizeof(uint32_t), SEEK_SET);
+                if(offset == -1){
+                        err(8, "Error in lseek");
+                }
+
+                if( (rs = read(fd1, &s, sizeof(s))) != sizeof(s)){
+                        err(9,"Error in reading");
+                }
+
+                //vzimame pyrvata uint128_t, posle s mestene na pointera sledvashtata
+                uint128_t* first = (uint128_t)&s;
+                uint128_t* second = first + 1;
+                *first = *first ^ h.sectionkey;
+                *second = *second ^ h.sectionkey;
+
+                if(h.s[i] == 0){
+                        continue; //po uslovie sa dobaveni izkustveno
+                }
+
+                //mestim otkudeto zapochvat dannite na section-a
+                offset = lseek(fd1, (h.s[i]+s.relative_offset)*sizeof(uint32_t), SEEK_SET);
+                if(offset == -1){
+                        err(10, "Error in lseek");
+                }
+
+                //vurtim po broi uniti v section-a
+                for(uint64_t j=0; j<s.len; j++){
+                        uint128_t unit;
+                        if( (rs = read(fd1, &unit, sizeof(unit))) != sizeof(unit)){
+                                err(11, "Error in reading");
+                        }
+
+                        //razkodirame unit-a
+                        unit = unit ^ s.datakey;
+
+                        if(write(fd2, &unit, sizeof(unit)) == -1){
+                                err(12, "Error in writing");
+                        }
+                }
+        }
+
+        uint32_t checksum = 0;
+        uint32_t curr;
+        if( lseek(fd1, 0, SEEK_SET) == -1){
+                err(13, "Error in lseek");
+        }
+
+        while( (rs = read(fd1, &curr, sizeof(curr))) == sizeof(curr)){
+                checksum = checksum ^ curr;
+        }
+
+        if(checksum != h.cksum){
+                err(14, "Error in checksum");
+        }
+
+        //remove padding
+        if(lseek(fd2, 0, SEEK_SET) == -1){
+                err(15, "Error in lseek");
+        }
+
+        char c;
+        for(uint32_t i=0; i<h.ofsb; i++){
+                if( (rs = read(fd2, &c, sizeof(c))) != sizeof(c)){
+                        err(16, "Error in reading");
+                }
+                if(write(fd3, &c, sizeof(c)) == -1){
+                        err(17, "Error in writing");
+                }
+        }
+
+        close(fd1);
+        close(fd2);
+        close(fd3);
+        exit(0);
+}
